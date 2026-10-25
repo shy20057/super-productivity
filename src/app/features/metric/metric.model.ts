@@ -1,6 +1,7 @@
 import { EntityState } from '@ngrx/entity';
 // import { Label, SingleDataSet } from 'ng2-charts';
 import { ChartData } from 'chart.js';
+import { FocusSessionEntry } from './focus-session.model';
 
 export interface ReflectionEntry {
   text: string;
@@ -12,6 +13,8 @@ export interface MetricCopy {
   id: string;
 
   focusSessions?: number[];
+  focusSessionDetails?: (FocusSessionEntry | null)[];
+  focusSessionDetailsSignature?: string;
 
   // Evaluation fields
   notes?: string | null;

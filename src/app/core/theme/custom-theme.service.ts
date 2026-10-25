@@ -22,6 +22,12 @@ export interface CustomTheme {
   kind: 'builtin' | 'user';
   /** Empty for the default theme; an asset URL for built-ins; absent for user themes. */
   url?: string;
+  /**
+   * Path of a wallpaper bundled next to a built-in theme. Theme CSS may not
+   * contain `url()` (uploaded themes must not fetch anything), so the app
+   * hands the path to the theme via the `--theme-wallpaper` property.
+   */
+  wallpaperUrl?: string;
   requiredMode?: 'dark' | 'light' | 'system';
   /**
    * Non-blocking warnings carried over from the validator (user themes only).
@@ -145,6 +151,14 @@ export const BUILT_IN_THEMES: CustomTheme[] = [
     name: 'Glass',
     kind: 'builtin',
     url: 'assets/themes/glass.css',
+    requiredMode: 'dark',
+  },
+  {
+    id: 'home-evening',
+    name: '居家 · 静夜 (macOS)',
+    kind: 'builtin',
+    url: 'assets/themes/home-evening.css',
+    wallpaperUrl: 'assets/themes/wallpapers/home-evening.jpg',
     requiredMode: 'dark',
   },
   {
@@ -294,12 +308,29 @@ export class CustomThemeService {
     const appliedRef = await this._applyTheme(ref, requestGeneration);
     if (!appliedRef || requestGeneration !== this._loadRequestGeneration) return false;
 
+    this._applyWallpaper(appliedRef);
     const requestedThemeWasApplied = refsEqual(appliedRef, ref);
     if (persistSelection || !requestedThemeWasApplied) {
       this._commitActiveRef(appliedRef);
     }
     this._markThemeApplied();
     return requestedThemeWasApplied;
+  }
+
+  /**
+   * Hand the active theme the path of its bundled wallpaper. Theme CSS may
+   * not reference external resources — uploaded themes must not fetch
+   * anything — so the path travels as a custom property the theme reads.
+   */
+  private _applyWallpaper(ref: CustomThemeRef): void {
+    const theme =
+      ref.kind === 'builtin' ? BUILT_IN_THEMES.find((t) => t.id === ref.id) : undefined;
+    const root = this._document.documentElement;
+    if (theme?.wallpaperUrl) {
+      root.style.setProperty('--theme-wallpaper', `url('${theme.wallpaperUrl}')`);
+    } else {
+      root.style.removeProperty('--theme-wallpaper');
+    }
   }
 
   private async _applyTheme(

@@ -46,6 +46,8 @@ const toSnapshotInput = (
         currentCycle: state.currentCycle,
         pausedTaskId: state.pausedTaskId,
         trackedTaskId: currentTaskId,
+        isOverlayShown: state.isOverlayShown,
+        isOvertimeEnabled: state._isOvertimeEnabled,
       };
 
 // `elapsed` changes every tick while running but is derivable from
@@ -60,12 +62,11 @@ const isSessionOver = (timer: FocusSessionSnapshot['timer'], now: number): boole
 
 /**
  * Keeps a running/paused focus session in localStorage and re-adopts it when the
- * app starts with an idle store, so an iOS WebView killed in the background
- * does not reset the Pomodoro or stop task tracking.
+ * app starts with an idle store, so a page reload, desktop restart or an iOS
+ * WebView killed in the background does not reset the timer or its task.
  * Focus state is local-only (never op-logged), so this has no sync surface.
- * Registered on iOS only: AndroidFocusModeEffects recovers from the native
- * foreground service (a second path would race it), and on desktop/web closing
- * the app is a deliberate end of the session.
+ * Registered on web, desktop and iOS. AndroidFocusModeEffects recovers from the
+ * native foreground service, so a second path there would race it.
  */
 @Injectable()
 export class FocusModeSessionPersistenceEffects {
@@ -134,15 +135,27 @@ export class FocusModeSessionPersistenceEffects {
     // was most likely abandoned on purpose.
     if (!snapshot || now - snapshot.savedAt > MOBILE_BACKGROUND_IDLE_CAP_MS) return;
     const { timer, mode, currentCycle, pausedTaskId, trackedTaskId } = snapshot;
+    const isOver =
+      !(timer.purpose === 'work' && snapshot.isOvertimeEnabled === true) &&
+      isSessionOver(timer, now);
     // A session that ended while away completes on the next tick with
     // `elapsed = now - startedAt`; pin the start so it logs its real length,
     // not the time the app was gone.
     const restoredTimer =
-      timer.isRunning && isSessionOver(timer, now)
-        ? { ...timer, startedAt: now - timer.duration }
-        : timer;
+      timer.isRunning && isOver ? { ...timer, startedAt: now - timer.duration } : timer;
     this._store.dispatch(
-      restoreFocusSession({ timer: restoredTimer, mode, currentCycle, pausedTaskId }),
+      restoreFocusSession({
+        timer: restoredTimer,
+        mode,
+        currentCycle,
+        pausedTaskId: pausedTaskId ?? (isOver ? trackedTaskId : null),
+        ...(snapshot.isOverlayShown !== undefined
+          ? { isOverlayShown: snapshot.isOverlayShown }
+          : {}),
+        ...(snapshot.isOvertimeEnabled !== undefined
+          ? { isOvertimeEnabled: snapshot.isOvertimeEnabled }
+          : {}),
+      }),
     );
 
     // A session that ended while the app was gone completes via the tick
@@ -154,7 +167,7 @@ export class FocusModeSessionPersistenceEffects {
       !currentTaskId &&
       timer.purpose === 'work' &&
       timer.isRunning &&
-      !isSessionOver(timer, now) &&
+      !isOver &&
       trackedTask &&
       !trackedTask.isDone
     ) {

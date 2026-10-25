@@ -22,6 +22,8 @@ const KEY_TO_REPLACE = [
   'syncFilePath',
   'syncFolderPath',
   'title',
+  'taskTitle',
+  'projectTitle',
   'originalImgPath',
   'path',
   'content',

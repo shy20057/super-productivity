@@ -1,6 +1,6 @@
 import * as nodemailer from 'nodemailer';
 import { Logger } from './logger';
-import { loadConfigFromEnv } from './config';
+import { loadConfigFromEnv, type ServerConfig } from './config';
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -45,18 +45,68 @@ const getTransporter = async (): Promise<nodemailer.Transporter> => {
   return transporter;
 };
 
+interface EmailMessage {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
+const sendEmail = async (config: ServerConfig, mail: EmailMessage): Promise<void> => {
+  if (config.brevo) {
+    let response: Response;
+    try {
+      response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': config.brevo.apiKey,
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { email: config.brevo.fromEmail, name: config.brevo.fromName },
+          to: [{ email: mail.to }],
+          subject: mail.subject,
+          textContent: mail.text,
+          htmlContent: mail.html,
+        }),
+        signal: AbortSignal.timeout(15_000),
+        redirect: 'error',
+      });
+    } catch {
+      // Fetch/header errors can contain the credential value. Never log them.
+      throw new Error('Unable to reach Brevo email service');
+    }
+    // Do not log provider bodies: they may reflect email addresses or login links.
+    await response.body?.cancel();
+    if (!response.ok) {
+      throw new Error(`Brevo email service returned HTTP ${response.status}`);
+    }
+    Logger.info('Email accepted by Brevo');
+    return;
+  }
+
+  const mailTransporter = await getTransporter();
+  const info = await mailTransporter.sendMail(mail);
+  Logger.info(`Email sent: ${info.messageId}`);
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    Logger.info(`Preview URL: ${previewUrl}`);
+  }
+};
+
 export const sendVerificationEmail = async (
   to: string,
   token: string,
 ): Promise<boolean> => {
   try {
-    const mailTransporter = await getTransporter();
     const config = loadConfigFromEnv();
     const from = config.smtp?.from || '"SuperSync" <noreply@example.com>';
 
     const verificationLink = `${config.publicUrl}/verify-email?token=${token}`;
 
-    const info = await mailTransporter.sendMail({
+    await sendEmail(config, {
       from,
       to,
       subject: 'Verify your SuperSync account',
@@ -81,13 +131,6 @@ export const sendVerificationEmail = async (
       `,
     });
 
-    Logger.info(`Verification email sent: ${info.messageId}`);
-
-    // If using Ethereal, log the preview URL
-    if (nodemailer.getTestMessageUrl(info)) {
-      Logger.info(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-    }
-
     return true;
   } catch (err) {
     Logger.error('Failed to send verification email:', err);
@@ -100,13 +143,12 @@ export const sendPasskeyRecoveryEmail = async (
   token: string,
 ): Promise<boolean> => {
   try {
-    const mailTransporter = await getTransporter();
     const config = loadConfigFromEnv();
     const from = config.smtp?.from || '"SuperSync" <noreply@example.com>';
 
     const recoveryLink = `${config.publicUrl}/recover-passkey?token=${token}`;
 
-    const info = await mailTransporter.sendMail({
+    await sendEmail(config, {
       from,
       to,
       subject: 'Recover your SuperSync passkey',
@@ -138,13 +180,6 @@ export const sendPasskeyRecoveryEmail = async (
       `,
     });
 
-    Logger.info(`Passkey recovery email sent: ${info.messageId}`);
-
-    // If using Ethereal, log the preview URL
-    if (nodemailer.getTestMessageUrl(info)) {
-      Logger.info(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-    }
-
     return true;
   } catch (err) {
     Logger.error('Failed to send passkey recovery email:', err);
@@ -157,13 +192,14 @@ export const sendLoginMagicLinkEmail = async (
   token: string,
 ): Promise<boolean> => {
   try {
-    const mailTransporter = await getTransporter();
     const config = loadConfigFromEnv();
     const from = config.smtp?.from || '"SuperSync" <noreply@example.com>';
 
-    const loginLink = `${config.publicUrl}/magic-login?token=${token}`;
+    const loginLink = config.webAppUrl
+      ? `${config.webAppUrl}/#/account?loginToken=${encodeURIComponent(token)}`
+      : `${config.publicUrl}/magic-login?token=${token}`;
 
-    const info = await mailTransporter.sendMail({
+    await sendEmail(config, {
       from,
       to,
       subject: 'Your SuperSync login link',
@@ -194,12 +230,6 @@ export const sendLoginMagicLinkEmail = async (
         </div>
       `,
     });
-
-    Logger.info(`Magic link login email sent: ${info.messageId}`);
-
-    if (nodemailer.getTestMessageUrl(info)) {
-      Logger.info(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-    }
 
     return true;
   } catch (err) {

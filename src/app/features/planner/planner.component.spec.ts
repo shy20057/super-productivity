@@ -32,6 +32,13 @@ describe('PlannerComponent', () => {
     scheduledIItems: [],
   });
 
+  it('marks a day containing only completed tasks in the calendar navigation', () => {
+    const day = makePlannerDay('2026-10-24', 1);
+    days$.next([{ ...day, tasks: [], completedTasks: day.tasks }]);
+    fixture.detectChanges();
+    expect(component.daysWithTasks().has(day.dayDate)).toBeTrue();
+  });
+
   beforeEach(async () => {
     days$ = new BehaviorSubject<PlannerDay[]>([]);
 

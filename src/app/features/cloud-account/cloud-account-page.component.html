@@ -1,0 +1,104 @@
+<section class="account-page">
+  <h1>{{ T.F.CLOUD_ACCOUNT.TITLE | translate }}</h1>
+  <p>{{ T.F.CLOUD_ACCOUNT.INTRO | translate }}</p>
+
+  @if (account.accountEmail(); as accountEmail) {
+    <p>{{ T.F.CLOUD_ACCOUNT.CURRENT_ACCOUNT | translate }}: {{ accountEmail }}</p>
+  }
+
+  <div
+    aria-live="polite"
+    role="status"
+  >
+    @switch (account.state()) {
+      @case ('loading') {
+        <p>{{ T.F.CLOUD_ACCOUNT.LOADING | translate }}</p>
+      }
+      @case ('unavailable') {
+        <div class="callout">
+          <p>{{ T.F.CLOUD_ACCOUNT.UNAVAILABLE | translate }}</p>
+        </div>
+      }
+      @case ('sending') {
+        <p>{{ T.F.CLOUD_ACCOUNT.SENDING | translate }}</p>
+      }
+      @case ('sent') {
+        <p>{{ T.F.CLOUD_ACCOUNT.SENT | translate }}</p>
+      }
+      @case ('verifying') {
+        <p>{{ T.F.CLOUD_ACCOUNT.VERIFYING | translate }}</p>
+      }
+      @case ('authenticated') {
+        <p>{{ T.F.CLOUD_ACCOUNT.AUTHENTICATED | translate }}</p>
+      }
+      @case ('blocked') {
+        <div class="callout callout--warning">
+          <p>{{ T.F.CLOUD_ACCOUNT.ACCOUNT_BLOCKED | translate }}</p>
+        </div>
+      }
+      @case ('error') {
+        <div class="callout callout--danger">
+          <p>{{ T.F.CLOUD_ACCOUNT.ERROR | translate }}</p>
+        </div>
+      }
+    }
+  </div>
+
+  @if (account.state() === 'authenticated') {
+    <button
+      mat-flat-button
+      color="primary"
+      [disabled]="isOpeningSync()"
+      (click)="configureSync()"
+    >
+      {{ T.F.CLOUD_ACCOUNT.CONTINUE_SYNC | translate }}
+    </button>
+  } @else if (account.serverUrl() && account.state() !== 'verifying') {
+    <form (submit)="$event.preventDefault(); sendLink()">
+      <mat-form-field>
+        <mat-label>{{ T.F.CLOUD_ACCOUNT.EMAIL | translate }}</mat-label>
+        <input
+          matInput
+          type="email"
+          autocomplete="email"
+          [formControl]="email"
+          [attr.aria-invalid]="email.touched && email.invalid"
+          required
+        />
+      </mat-form-field>
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="email.invalid || account.state() === 'sending'"
+      >
+        {{ T.F.CLOUD_ACCOUNT.SEND_LINK | translate }}
+      </button>
+    </form>
+    <p>
+      <a
+        [href]="account.serverUrl()"
+        target="_blank"
+        rel="noopener noreferrer"
+        >{{ T.F.CLOUD_ACCOUNT.REGISTER | translate }}</a
+      >
+    </p>
+  }
+
+  <div class="account-actions">
+    @if (account.isSyncConfigured()) {
+      <button
+        mat-stroked-button
+        (click)="manageSync()"
+      >
+        {{ T.F.CLOUD_ACCOUNT.MANAGE_SYNC | translate }}
+      </button>
+    }
+    <a
+      mat-button
+      routerLink="/tag/TODAY/tasks"
+    >
+      {{ T.F.CLOUD_ACCOUNT.CONTINUE_OFFLINE | translate }}
+    </a>
+  </div>
+</section>

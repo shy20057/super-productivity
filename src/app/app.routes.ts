@@ -13,6 +13,14 @@ import {
 import { TagTaskPageComponent } from './pages/tag-task-page/tag-task-page.component';
 
 export const APP_ROUTES: Routes = [
+  {
+    path: 'account',
+    loadComponent: () =>
+      import('./features/cloud-account/cloud-account-page.component').then(
+        (module) => module.CloudAccountPageComponent,
+      ),
+    data: { page: 'account' },
+  },
   // Eagerly loaded — this is the main view
   {
     path: 'tag/:id/tasks',
@@ -38,6 +46,15 @@ export const APP_ROUTES: Routes = [
       import('./routes/context.routes').then((m) => m.PROJECT_CHILD_ROUTES),
   },
   // Standalone pages — all import from same barrel so they share one chunk
+  {
+    path: 'statistics',
+    loadComponent: () =>
+      import('./features/statistics/statistics-page.component').then(
+        (module) => module.StatisticsPageComponent,
+      ),
+    data: { page: 'statistics' },
+    canActivate: [FocusOverlayOpenGuard],
+  },
   {
     path: 'config',
     loadComponent: () =>

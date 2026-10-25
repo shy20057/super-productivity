@@ -379,6 +379,125 @@ describe('Planner Selectors - selectPlannerDays', () => {
     expect(result[0].isToday).toBe(true);
   });
 
+  it('shows an unscheduled completed task on its completion day without adding workload', () => {
+    const task = createMockTask({
+      id: 'completed-focus',
+      isDone: true,
+      doneOn: todayAtHour(12),
+      timeEstimate: 60_000,
+    });
+    const tasks = createTasksMapFromTasksArray([task]);
+    const result = createPlannerDaysSelector().projector(
+      tasks,
+      emptyPlannerState,
+      defaultScheduleConfig,
+      0,
+    );
+
+    expect(result[0].tasks).toEqual([]);
+    expect(result[0].completedTasks).toEqual([task]);
+    expect(result[0].completedTasks![0].isDone).toBeTrue();
+    expect(result[0].timeEstimate).toBe(0);
+    expect(task.dueDay).toBeUndefined();
+    expect(emptyPlannerState.days).toEqual({});
+  });
+
+  it('does not duplicate a completed task already planned for today', () => {
+    const task = createMockTask({
+      id: 'already-planned',
+      isDone: true,
+      doneOn: todayAtHour(12),
+      dueDay: today,
+    });
+    const selector = fromSelectors.selectPlannerDays(
+      [today],
+      [],
+      [task.id],
+      [],
+      [],
+      today,
+    );
+    const result = selector.projector(
+      createTasksMapFromTasksArray([task]),
+      emptyPlannerState,
+      defaultScheduleConfig,
+      0,
+    );
+    expect(result[0].tasks.map((item) => item.id)).toEqual([task.id]);
+    expect(result[0].completedTasks).toEqual([]);
+  });
+
+  it('does not duplicate completed timed tasks between the normal and scheduled lists', () => {
+    const task = {
+      ...createMockTask({ id: 'timed-done', isDone: true, doneOn: todayAtHour(12) }),
+      dueWithTime: todayAtHour(9),
+    };
+    const selector = fromSelectors.selectPlannerDays(
+      [today],
+      [],
+      [task.id],
+      [],
+      [task],
+      today,
+    );
+    const result = selector.projector(
+      createTasksMapFromTasksArray([task]),
+      emptyPlannerState,
+      defaultScheduleConfig,
+      0,
+    );
+    expect(result[0].tasks).toEqual([]);
+    expect(result[0].scheduledIItems.map((item) => item.id)).toEqual([task.id]);
+    expect(result[0].completedTasks).toEqual([]);
+    expect(result[0].timeEstimate).toBe(0);
+  });
+
+  it('uses the logical completion day after midnight without changing a future schedule', () => {
+    const day = '2026-10-24';
+    const task = createMockTask({
+      id: 'late-completion',
+      isDone: true,
+      doneOn: new Date(2026, 9, 25, 1).getTime(),
+      dueDay: '2026-10-26',
+    });
+    const result = createPlannerDaysSelector([day, '2026-10-25'], day).projector(
+      createTasksMapFromTasksArray([task]),
+      emptyPlannerState,
+      defaultScheduleConfig,
+      4 * 60 * 60 * 1000,
+    );
+    expect(result[0].completedTasks).toEqual([task]);
+    expect(result[1].completedTasks).toEqual([]);
+    expect(task.dueDay).toBe('2026-10-26');
+  });
+
+  it('keeps completed children under their completed parent and ignores undone tasks', () => {
+    const parent = createMockTask({
+      id: 'parent',
+      isDone: true,
+      doneOn: todayAtHour(12),
+      subTaskIds: ['child'],
+    });
+    const child = createMockTask({
+      id: 'child',
+      parentId: parent.id,
+      isDone: true,
+      doneOn: todayAtHour(12),
+    });
+    const undone = createMockTask({
+      id: 'undone',
+      isDone: false,
+      doneOn: todayAtHour(12),
+    });
+    const result = createPlannerDaysSelector().projector(
+      createTasksMapFromTasksArray([parent, child, undone]),
+      emptyPlannerState,
+      defaultScheduleConfig,
+      0,
+    );
+    expect(result[0].completedTasks!.map((task) => task.id)).toEqual([parent.id]);
+  });
+
   it('should include tasks from planner state for a non-today day', () => {
     const tomorrow = getDbDateStr(new Date(Date.now() + 86400000));
     const task = createMockTask({ id: 't1', title: 'Plan task' });

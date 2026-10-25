@@ -8,6 +8,7 @@ import { GlobalConfigService } from '../../config/global-config.service';
 import { TaskService } from '../../tasks/task.service';
 import { BannerService } from '../../../core/banner/banner.service';
 import { MetricService } from '../../metric/metric.service';
+import { FocusSessionTrackerService } from '../focus-session-tracker.service';
 import { FocusModeStorageService } from '../focus-mode-storage.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { TakeABreakService } from '../../take-a-break/take-a-break.service';
@@ -20,7 +21,11 @@ import * as selectors from './focus-mode.selectors';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
 import { unsetCurrentTask, setCurrentTask } from '../../tasks/store/task.actions';
 import { openIdleDialog } from '../../idle/store/idle.actions';
-import { selectLastCurrentTask, selectTaskById } from '../../tasks/store/task.selectors';
+import {
+  selectLastCurrentTask,
+  selectTaskById,
+  selectTaskEntities,
+} from '../../tasks/store/task.selectors';
 import {
   selectFocusModeConfig,
   selectSoundConfig,
@@ -87,6 +92,7 @@ describe('FocusModeEffects', () => {
     taskServiceMock = {
       currentTaskId$: currentTaskId$.asObservable(),
       currentTaskId: jasmine.createSpy('currentTaskId').and.returnValue(null),
+      setDone: jasmine.createSpy('setDone'),
     };
 
     globalConfigServiceMock = {
@@ -135,6 +141,8 @@ describe('FocusModeEffects', () => {
             { selector: selectors.selectMode, value: FocusModeMode.Pomodoro },
             { selector: selectors.selectCurrentCycle, value: 1 },
             { selector: selectors.selectLastSessionDuration, value: 0 },
+            { selector: selectors.selectPausedTaskId, value: null },
+            { selector: selectTaskEntities, value: {} },
             {
               selector: selectFocusModeConfig,
               value: {},
@@ -1060,14 +1068,124 @@ describe('FocusModeEffects', () => {
   });
 
   describe('logFocusSession$', () => {
+    it('keeps completed tasks completed after a break or when the break is skipped', () => {
+      const taskId = 'completed-focus-task';
+      store.overrideSelector(selectTaskEntities, {
+        [taskId]: {
+          ...DEFAULT_TASK,
+          id: taskId,
+          projectId: 'INBOX_PROJECT',
+          isDone: true,
+        },
+      });
+      store.refreshState();
+      actions$ = of(actions.completeBreak({ pausedTaskId: taskId }));
+      const resumed: Action[] = [];
+      effects.resumeTrackingOnBreakComplete$.subscribe((action) => resumed.push(action));
+      expect(resumed).toEqual([]);
+
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldAutoStartNextSession: true,
+      });
+      const next: Action[] = [];
+      effects.autoStartSessionOnBreakComplete$.subscribe((action) => next.push(action));
+      expect(next).toEqual([actions.selectFocusTask()]);
+
+      actions$ = of(actions.skipBreak({ pausedTaskId: taskId }));
+      const skipped: Action[] = [];
+      effects.skipBreak$.subscribe((action) => skipped.push(action));
+      expect(skipped).toEqual([actions.selectFocusTask()]);
+    });
+
+    for (const isManual of [true, false]) {
+      it(`completes the round's task on ${isManual ? 'manual' : 'timer'} ending after tracking stops`, () => {
+        const taskId = 'focused-task';
+        spyOn(TestBed.inject(FocusSessionTrackerService), 'getTaskId').and.returnValue(
+          taskId,
+        );
+        spyOn(TestBed.inject(FocusSessionTrackerService), 'finish').and.returnValue(
+          undefined,
+        );
+        store.overrideSelector(selectTaskEntities, {
+          [taskId]: { ...DEFAULT_TASK, id: taskId, projectId: 'INBOX_PROJECT' },
+        });
+        store.overrideSelector(selectors.selectLastSessionDuration, 60_000);
+        currentTaskId$.next(null);
+        store.refreshState();
+        actions$ = of(actions.completeFocusSession({ isManual }));
+
+        effects.logFocusSession$.subscribe();
+
+        expect(metricServiceMock.logFocusSession).toHaveBeenCalledBefore(
+          taskServiceMock.setDone,
+        );
+        expect(taskServiceMock.setDone).toHaveBeenCalledOnceWith(taskId);
+      });
+    }
+
+    it('does not complete a different task that started tracking after the round', () => {
+      const taskId = 'focused-task';
+      spyOn(TestBed.inject(FocusSessionTrackerService), 'getTaskId').and.returnValue(
+        taskId,
+      );
+      spyOn(TestBed.inject(FocusSessionTrackerService), 'finish').and.returnValue(
+        undefined,
+      );
+      store.overrideSelector(selectTaskEntities, {
+        [taskId]: { ...DEFAULT_TASK, id: taskId, projectId: 'INBOX_PROJECT' },
+        ['other-task']: { ...DEFAULT_TASK, id: 'other-task', projectId: 'INBOX_PROJECT' },
+      });
+      store.overrideSelector(selectors.selectLastSessionDuration, 60_000);
+      currentTaskId$.next('other-task');
+      store.refreshState();
+      actions$ = of(actions.completeFocusSession({ isManual: true }));
+
+      effects.logFocusSession$.subscribe();
+
+      expect(taskServiceMock.setDone).toHaveBeenCalledOnceWith(taskId);
+    });
+
+    it('does not change task status when a break ends or the round is cancelled', () => {
+      actions$ = of(actions.completeBreak({}), actions.cancelFocusSession());
+      effects.logFocusSession$.subscribe();
+      expect(taskServiceMock.setDone).not.toHaveBeenCalled();
+    });
+
     it('should call metricService.logFocusSession with duration on completeFocusSession', () => {
+      const entry = {
+        id: 'test-round',
+        duration: 25 * 60 * 1000,
+        allocations: [{ duration: 25 * 60 * 1000 }],
+      };
+      spyOn(TestBed.inject(FocusSessionTrackerService), 'finish').and.returnValue(entry);
       actions$ = of(actions.completeFocusSession({ isManual: false }));
       store.overrideSelector(selectors.selectLastSessionDuration, 25 * 60 * 1000);
       store.refreshState();
 
       effects.logFocusSession$.subscribe();
 
-      expect(metricServiceMock.logFocusSession).toHaveBeenCalledWith(25 * 60 * 1000);
+      expect(metricServiceMock.logFocusSession).toHaveBeenCalledWith(
+        25 * 60 * 1000,
+        undefined,
+        entry,
+      );
+    });
+
+    it('logs the duration even when the local attribution draft is missing', () => {
+      spyOn(TestBed.inject(FocusSessionTrackerService), 'finish').and.returnValue(
+        undefined,
+      );
+      actions$ = of(actions.completeFocusSession({ isManual: true }));
+      store.overrideSelector(selectors.selectLastSessionDuration, 60_000);
+      store.refreshState();
+
+      effects.logFocusSession$.subscribe();
+
+      expect(metricServiceMock.logFocusSession).toHaveBeenCalledWith(
+        60_000,
+        undefined,
+        undefined,
+      );
     });
 
     it('should NOT log when duration is 0', () => {

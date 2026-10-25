@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  MAT_DIALOG_DATA,
   MatDialog,
   MatDialogActions,
   MatDialogContent,
@@ -56,6 +57,7 @@ import { discoverNextcloudUserId } from '../../../op-log/sync-providers/file-bas
 import type { OneDrivePrivateCfg } from '../../../op-log/sync-providers/file-based/onedrive/onedrive.model';
 import type { LocalFileSyncPrivateCfg } from '@sp/sync-providers/local-file';
 import type { SuperSyncPrivateCfg } from '@sp/sync-providers/super-sync';
+import type { CloudAccountDialogData } from '../../../features/cloud-account/cloud-account.model';
 
 // `testWebdavConnection` reports a 404 (auth ok, wrong DAV path) via this
 // HTTP status; the package-side `WebDavHttpStatus` enum is not exported to
@@ -84,6 +86,10 @@ type SyncFormModel = SyncConfig & {
   ],
 })
 export class DialogSyncCfgComponent implements AfterViewInit {
+  readonly cloudAccount = inject<CloudAccountDialogData | null>(MAT_DIALOG_DATA, {
+    optional: true,
+  })?.cloudAccount;
+  readonly cloudAccountBlocked = signal(false);
   syncConfigService = inject(SyncConfigService);
   syncWrapperService = inject(SyncWrapperService);
   private _providerManager = inject(SyncProviderManager);
@@ -457,6 +463,15 @@ export class DialogSyncCfgComponent implements AfterViewInit {
         this.updateTmpCfg({
           ...v,
           isEnabled: true,
+          ...(this.cloudAccount
+            ? {
+                syncProvider: SyncProviderId.SuperSync,
+                superSync: {
+                  baseUrl: this.cloudAccount.credentials.baseUrl,
+                  accessToken: this.cloudAccount.credentials.accessToken,
+                },
+              }
+            : {}),
           _isInitialSetup: !v.isEnabled,
           _activeProviderId: this._initialProviderId,
         });
@@ -464,6 +479,9 @@ export class DialogSyncCfgComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    if (this.cloudAccount) {
+      return;
+    }
     // Setup provider change listener after the form is initialized by Formly
     // Using setTimeout to ensure the form control exists
     setTimeout(() => {
@@ -651,6 +669,10 @@ export class DialogSyncCfgComponent implements AfterViewInit {
   }
 
   async save(): Promise<void> {
+    if (this.cloudAccount && !(await this.cloudAccount.canSave())) {
+      this.cloudAccountBlocked.set(true);
+      return;
+    }
     // Check if form is valid
     if (!this.form.valid) {
       // Mark all fields as touched to show validation errors
@@ -761,6 +783,19 @@ export class DialogSyncCfgComponent implements AfterViewInit {
       }
     }
 
+    if (this.cloudAccount) {
+      // Recheck after async setup work. Never apply credentials to a dataset
+      // whose configured account changed while the confirmation was open.
+      if (!(await this.cloudAccount.canSave())) {
+        this.cloudAccountBlocked.set(true);
+        return;
+      }
+      configToSave.syncProvider = SyncProviderId.SuperSync;
+      configToSave.superSync = {
+        baseUrl: this.cloudAccount.credentials.baseUrl,
+        accessToken: this.cloudAccount.credentials.accessToken,
+      };
+    }
     await this.syncConfigService.updateSettingsFromForm(configToSave as SyncConfig, true);
     this._matDialogRef.close();
 

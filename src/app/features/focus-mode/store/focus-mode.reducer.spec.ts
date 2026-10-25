@@ -949,6 +949,31 @@ describe('FocusModeReducer', () => {
     });
   });
   describe('restoreFocusSession', () => {
+    it('reopens the focus screen and preserves a round running in overtime', () => {
+      const elapsed = 30 * 60_000;
+      const restored = focusModeReducer(
+        initialState,
+        a.restoreFocusSession({
+          timer: {
+            isRunning: true,
+            startedAt: Date.now() - elapsed,
+            elapsed,
+            duration: 25 * 60_000,
+            purpose: 'work',
+          },
+          mode: FocusModeMode.Pomodoro,
+          currentCycle: 1,
+          pausedTaskId: null,
+          isOverlayShown: true,
+          isOvertimeEnabled: true,
+        }),
+      );
+
+      expect(restored.isOverlayShown).toBe(true);
+      expect(restored._isOvertimeEnabled).toBe(true);
+      expect(focusModeReducer(restored, a.tick()).timer.isRunning).toBe(true);
+    });
+
     it('re-adopts a running work session so the next tick catches up', () => {
       const tenMinutes = 10 * 60_000;
       const startedAt = Date.now() - tenMinutes;

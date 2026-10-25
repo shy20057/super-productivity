@@ -11,6 +11,8 @@ export type AppFeaturesConfig = Readonly<{
   isFocusModeEnabled: boolean;
   isSchedulerEnabled: boolean;
   isPlannerEnabled: boolean;
+  /** Missing in older settings; defaults to on. */
+  isStatisticsEnabled?: boolean;
   isBoardsEnabled: boolean;
   // No longer read: the day panel follows isSchedulerEnabled. Kept because
   // persisted and synced data (and released clients) still carry it.

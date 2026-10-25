@@ -421,6 +421,7 @@ test('built-in themes do not target retired task host classes', () => {
 test('themes with glass effects provide solid accessibility and compatibility modes', () => {
   const fallbackMarkers = {
     'glass.css': [/--glass-wallpaper-filter:\s*none/, /--glass-pane:\s*var\(/],
+    'home-evening.css': [/--home-frost:\s*none/, /--home-sidebar:\s*var\(--surface-1\)/],
     'liquid-glass.css': [/--card-bg:\s*#/, /--lg-overlay-bg:\s*#/],
     'rainbow.css': [/--neon-blur:\s*none/, /--neon-pane:\s*#/],
     'velvet.css': [/--velvet-frost:\s*none/, /--velvet-pane-1:\s*var\(/],

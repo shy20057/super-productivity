@@ -105,7 +105,7 @@ export const restoreFocusSessionFromNative = createAction(
 
 /**
  * Re-adopt a focus session from the local snapshot after the WebView was killed
- * in the background and recreated with an idle store (iOS only).
+ * in the background, or after a page reload or desktop restart.
  * `timer.startedAt` is absolute, so the tick reducer catches up on its own.
  */
 export const restoreFocusSession = createAction(
@@ -115,5 +115,7 @@ export const restoreFocusSession = createAction(
     mode: FocusModeMode;
     currentCycle: number;
     pausedTaskId: string | null;
+    isOverlayShown?: boolean;
+    isOvertimeEnabled?: boolean;
   }>(),
 );

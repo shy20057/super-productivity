@@ -219,6 +219,12 @@
   --success-green: #4fa758;
   --sun-yellow: #fff400;
 
+  // Keep task color families stable across themes; extra tasks use muted hues.
+  --statistics-task-hues: 219, 38, 153, 332, 263, 193, 69, 18;
+  --statistics-task-saturation: 40;
+  --statistics-task-lightness: 46;
+  --statistics-task-lightness-dark: 68;
+
   // -----------------------------
   // Dark Theme Elevation Colors
   // -----------------------------
@@ -470,6 +476,12 @@ body.isDarkTheme {
   --bg-lightest: var(--surface-4);
   --card-bg: var(--surface-2);
 
+  // Statistics inherit each theme's surfaces and text without changing task hues.
+  --statistics-panel-bg: var(--card-bg);
+  --statistics-chart-text-color: var(--text-color-muted);
+  --statistics-chart-grid-color: rgba(var(--ink-on-channel), 0.1);
+  --statistics-chart-category-grid: 0;
+
   // Navigation & panel (Cat A)
   --sidenav-bg: transparent;
   --sidenav-bg-mobile: var(--bg);
@@ -607,6 +619,9 @@ body.isDarkTheme {
 /* stylelint-disable-next-line no-duplicate-selectors -- layered token file: Cat B follows Layer 1 primitives on the same selector */
 body {
   // Background colors (Cat B)
+  // Deeper shades keep the shared task palette clear on light backgrounds.
+  --statistics-task-palette:
+    #5274aa, #967132, #427d61, #a05f7c, #7d66a2, #397b8e, #748041, #a06b54;
   --bg-drag-col: rgb(242, 242, 242);
   --bg-slightly-lighter: var(--bg);
   --bg-super-light: #fff;
@@ -690,6 +705,8 @@ body {
 /* stylelint-disable-next-line no-duplicate-selectors -- layered token file: Cat B follows Layer 1 primitives on the same selector */
 body.isDarkTheme {
   // Background colors (Cat B)
+  --statistics-task-palette:
+    #91acdd, #d7b780, #8cbfa8, #c991ab, #b3a0d2, #7fb8c8, #bcc58a, #ce9b87;
   --bg-slightly-lighter: var(--dark4);
   --bg-super-light: #616161;
 

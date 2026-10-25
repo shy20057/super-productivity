@@ -61,6 +61,9 @@ const ALLOWLIST = new Set([
   '--safe-area-inset-right',
   // src/app/ui/material-icons-loader.service.ts
   '--android-webview-icon-scale',
+  // src/app/core/theme/custom-theme.service.ts — path of a built-in theme's
+  // bundled wallpaper, handed to the theme CSS as a custom property.
+  '--theme-wallpaper',
 
   // Angular `[style.--x]` host/style bindings are picked up by STYLE_BINDING
   // below, so they need no entry here.

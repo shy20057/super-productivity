@@ -1,0 +1,84 @@
+@if (showAxis()) {
+  @if (axis(); as chart) {
+    <div class="axis-ticks">
+      @for (tick of chart.ticks; track tick) {
+        <span>{{ tick | date: 'HH:mm' }}</span>
+      }
+    </div>
+    <div class="axis-lanes">
+      @for (entry of chart.bars; track entry.details!.id) {
+        <div class="axis-lane">
+          <button
+            type="button"
+            class="axis-round"
+            [class.has-pause]="entry.pause > 0"
+            [style.left.%]="entry.left"
+            [style.width.%]="entry.width"
+            [style.background]="entry.background"
+            [title]="
+              (entry.title || (T.F.STATISTICS.UNASSIGNED | translate)) +
+              ': ' +
+              (entry.duration | msToString)
+            "
+            [attr.aria-label]="
+              (entry.title || (T.F.STATISTICS.UNASSIGNED | translate)) +
+              ': ' +
+              (entry.duration | msToString)
+            "
+            (click)="selected.emit(entry)"
+          ></button>
+        </div>
+      }
+    </div>
+    <p class="axis-hint">{{ T.F.STATISTICS.TIMELINE_HINT | translate }}</p>
+  }
+}
+<ol>
+  @for (entry of entries(); track entry.details?.id ?? entry.day + ':' + entry.index) {
+    <li>
+      <button
+        type="button"
+        (click)="selected.emit(entry)"
+      >
+        <span class="time">
+          @if (entry.known) {
+            {{ entry.details!.startedAt | date: 'MM-dd HH:mm' }}
+            <span>→ {{ entry.details!.endedAt | date: 'MM-dd HH:mm' }}</span>
+          } @else {
+            {{ entry.day }}<span>{{ T.F.STATISTICS.TIME_UNKNOWN | translate }}</span>
+          }
+        </span>
+        <span class="title">
+          @for (task of entry.segments; track $index) {
+            <span class="task-label">
+              <span
+                class="task-color"
+                [style.background-color]="task.color"
+                aria-hidden="true"
+              ></span>
+              {{
+                task.title ||
+                  ((entry.details ? T.F.STATISTICS.UNASSIGNED : T.F.STATISTICS.LEGACY)
+                    | translate)
+              }}
+            </span>
+          }
+          <small>
+            @if (entry.details?.isManual !== undefined) {
+              {{
+                (entry.details!.isManual
+                  ? T.F.STATISTICS.MANUAL
+                  : T.F.STATISTICS.TIMER_END
+                ) | translate
+              }}
+            }
+            @if (entry.pause) {
+              · {{ T.F.STATISTICS.PAUSED | translate }} {{ entry.pause | msToString }}
+            }
+          </small>
+        </span>
+        <strong>{{ entry.duration | msToString }}</strong>
+      </button>
+    </li>
+  }
+</ol>

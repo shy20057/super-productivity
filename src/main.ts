@@ -22,7 +22,11 @@ import {
 import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { androidInterface } from './app/features/android/android-interface';
 import { AndroidBackButtonService } from './app/features/android/android-back-button.service';
-import { IS_IOS_NATIVE, IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
+import {
+  IS_ANDROID_NATIVE,
+  IS_IOS_NATIVE,
+  IS_NATIVE_PLATFORM,
+} from './app/util/is-native-platform';
 // Type definitions for window.ea are in ./app/core/window-ea.d.ts
 import { App as CapacitorApp } from '@capacitor/app';
 import { GlobalErrorHandler } from './app/core/error-handler/global-error-handler.class';
@@ -474,7 +478,7 @@ bootstrapApplication(AppComponent, {
   const registerLazyEffects = async (): Promise<void> => {
     const [{ FocusModeEffects }, sessionPersistence] = await Promise.all([
       import('./app/features/focus-mode/store/focus-mode.effects'),
-      IS_IOS_NATIVE
+      !IS_ANDROID_NATIVE
         ? import('./app/features/focus-mode/store/focus-mode-session-persistence.effects')
         : null,
     ]);
@@ -483,9 +487,9 @@ bootstrapApplication(AppComponent, {
       [
         importProvidersFrom(
           // Session restore relies on FocusModeEffects (completion, logging),
-          // so it registers after them. iOS only: it kills backgrounded
-          // WebViews; Android recovers from its native foreground service, and
-          // on desktop a closed app means the user ended the session.
+          // so it registers after them. Web, desktop and iOS restore from a
+          // local snapshot; Android recovers from its native foreground service
+          // and must not have a second recovery path racing it.
           EffectsModule.forFeature([
             FocusModeEffects,
             ...(sessionPersistence

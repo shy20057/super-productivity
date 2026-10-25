@@ -98,6 +98,9 @@ export class MagicNavConfigService {
     this._menuTreeService.buildTagViewTree(this._tags()),
   );
   private readonly _pluginMenuEntries = this._pluginBridge.menuEntries;
+  private readonly isStatisticsEnabled = computed(
+    () => this._configService.appFeatures().isStatisticsEnabled ?? true,
+  );
   private readonly isSchedulerEnabled = computed(
     () => this._configService.appFeatures().isSchedulerEnabled,
   );
@@ -405,6 +408,17 @@ export class MagicNavConfigService {
 
   private _buildMainRoutesItems(): NavItem[] {
     const items: NavItem[] = [];
+
+    if (this.isStatisticsEnabled()) {
+      items.push({
+        type: 'route',
+        id: 'statistics',
+        label: T.F.STATISTICS.TITLE,
+        icon: 'bar_chart',
+        route: '/statistics',
+        featureConfigKey: 'isStatisticsEnabled',
+      });
+    }
 
     if (this.isPlannerEnabled()) {
       items.push({

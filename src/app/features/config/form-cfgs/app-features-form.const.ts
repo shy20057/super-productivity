@@ -8,6 +8,16 @@ export const APP_FEATURES_FORM_CFG: ConfigFormSection<AppFeaturesConfig> = {
   help: T.GCF.APP_FEATURES.HELP,
   items: [
     {
+      key: 'isStatisticsEnabled',
+      type: 'slide-toggle',
+      defaultValue: true,
+      templateOptions: {
+        label: T.F.STATISTICS.TITLE,
+        description: T.GCF.APP_FEATURES.STATISTICS_HINT,
+        icon: 'bar_chart',
+      },
+    },
+    {
       key: 'isPlannerEnabled',
       type: 'slide-toggle',
       templateOptions: {

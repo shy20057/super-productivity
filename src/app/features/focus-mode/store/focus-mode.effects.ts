@@ -31,7 +31,11 @@ import { startBreakEndAlarm, stopBreakEndAlarm } from '../../../util/break-end-a
 import { FocusModeLocalSettingsService } from '../../config/focus-mode-local-settings.service';
 import { IS_ELECTRON, IS_ELECTRON_TOKEN } from '../../../app.constants';
 import { setCurrentTask, unsetCurrentTask } from '../../tasks/store/task.actions';
-import { selectLastCurrentTask, selectTaskById } from '../../tasks/store/task.selectors';
+import {
+  selectLastCurrentTask,
+  selectTaskById,
+  selectTaskEntities,
+} from '../../tasks/store/task.selectors';
 import { openIdleDialog } from '../../idle/store/idle.actions';
 import { LS } from '../../../core/persistence/storage-keys.const';
 import {
@@ -56,6 +60,9 @@ import { T } from '../../../t.const';
 import { IS_ANDROID_WEB_VIEW_TOKEN } from '../../../util/is-android-web-view';
 import { BannerService } from '../../../core/banner/banner.service';
 import { BannerId } from '../../../core/banner/banner.model';
+import { FocusSessionTrackerService } from '../focus-session-tracker.service';
+import { selectCurrentTask } from '../../tasks/store/task.selectors';
+import { selectAllProjects } from '../../project/store/project.selectors';
 
 const SESSION_DONE_SOUND = 'positive.mp3';
 const TICK_SOUND = 'tick.mp3';
@@ -75,6 +82,57 @@ export class FocusModeEffects {
   private bannerService = inject(BannerService);
   private isAndroidWebView = inject(IS_ANDROID_WEB_VIEW_TOKEN);
   private focusModeLocalSettingsService = inject(FocusModeLocalSettingsService);
+  private readonly _sessionTracker = inject(FocusSessionTrackerService);
+
+  recordFocusProgress$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(
+          actions.tick,
+          actions.startFocusSession,
+          actions.pauseFocusSession,
+          actions.unPauseFocusSession,
+          actions.endFlowtimeSession,
+          actions.restoreFocusSession,
+          actions.restoreFocusSessionFromNative,
+          setCurrentTask,
+          unsetCurrentTask,
+        ),
+        withLatestFrom(
+          this.store.select(selectors.selectTimer),
+          this.store.select(selectors.selectMode),
+          this.store.select(selectCurrentTask),
+          this.store.select(selectAllProjects),
+          this.store.select(selectTaskEntities),
+        ),
+        tap(([action, timer, mode, task, projects, entities]) => {
+          if (action.type === actions.startFocusSession.type)
+            this._sessionTracker.cancel();
+          const selectedTask =
+            action.type === actions.startFocusSession.type && action.taskId
+              ? entities[action.taskId]
+              : task;
+          this._sessionTracker.observe(
+            timer,
+            mode,
+            selectedTask ?? undefined,
+            projects.find((project) => project.id === selectedTask?.projectId)?.title,
+            Date.now(),
+            action.type === actions.startFocusSession.type,
+          );
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  discardFocusProgress$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(actions.cancelFocusSession, actions.selectFocusTask),
+        tap(() => this._sessionTracker.cancel()),
+      ),
+    { dispatch: false },
+  );
 
   // Sync: When tracking starts → resume/skip-break or auto-spawn a new session.
   //
@@ -173,10 +231,12 @@ export class FocusModeEffects {
       withLatestFrom(
         this.store.select(selectors.selectTimer),
         this.store.select(selectIsFocusModeEnabled),
+        this.store.select(selectTaskEntities),
       ),
       filter(
-        ([[prevTaskId, currTaskId], timer, isFocusModeEnabled]) =>
+        ([[prevTaskId, currTaskId], timer, isFocusModeEnabled, entities]) =>
           isFocusModeEnabled &&
+          !(timer.purpose === 'break' && prevTaskId && entities[prevTaskId]?.isDone) &&
           (timer.purpose === 'work' || timer.purpose === 'break') &&
           timer.isRunning &&
           !!prevTaskId &&
@@ -232,7 +292,7 @@ export class FocusModeEffects {
         }
         return this.store.select(selectTaskById, { id: pausedTaskId }).pipe(
           take(1),
-          filter((task) => !!task),
+          filter((task) => !!task && !task.isDone),
           map(() => setCurrentTask({ id: pausedTaskId })),
         );
       }),
@@ -630,8 +690,14 @@ export class FocusModeEffects {
     this.actions$.pipe(
       ofType(actions.completeBreak),
       filter((action) => !!action.pausedTaskId),
-      withLatestFrom(this.taskService.currentTaskId$),
-      filter(([_, currentTaskId]) => !currentTaskId),
+      withLatestFrom(
+        this.taskService.currentTaskId$,
+        this.store.select(selectTaskEntities),
+      ),
+      filter(
+        ([action, currentTaskId, entities]) =>
+          !currentTaskId && !entities[action.pausedTaskId!]?.isDone,
+      ),
       map(([action]) => setCurrentTask({ id: action.pausedTaskId! })),
     ),
   );
@@ -643,12 +709,16 @@ export class FocusModeEffects {
       withLatestFrom(
         this.store.select(selectors.selectMode),
         this.store.select(selectFocusModeConfig),
+        this.taskService.currentTaskId$,
+        this.store.select(selectTaskEntities),
       ),
       filter(([_, mode]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
         return strategy.shouldAutoStartNextSession;
       }),
-      map(([_, mode, config]) => {
+      map(([action, mode, config, currentTaskId, entities]) => {
+        const taskId = currentTaskId ?? action.pausedTaskId;
+        if (taskId && entities[taskId]?.isDone) return actions.selectFocusTask();
         const strategy = this.strategyFactory.getStrategy(mode);
         return actions.startFocusSession({
           duration: strategy.initialSessionDuration,
@@ -676,19 +746,28 @@ export class FocusModeEffects {
         this.store.select(selectors.selectMode),
         this.store.select(selectFocusModeConfig),
         this.taskService.currentTaskId$,
+        this.store.select(selectTaskEntities),
       ),
-      switchMap(([action, mode, config, currentTaskId]) => {
+      switchMap(([action, mode, config, currentTaskId, entities]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
         const actionsToDispatch: any[] = [];
 
         // Resume task tracking if we paused it during break
         // Bug #6726 fix: Don't override if user is already tracking a different task
-        if (action.pausedTaskId && !currentTaskId) {
+        if (
+          action.pausedTaskId &&
+          !currentTaskId &&
+          !entities[action.pausedTaskId]?.isDone
+        ) {
           actionsToDispatch.push(setCurrentTask({ id: action.pausedTaskId }));
         }
 
         // Auto-start next session if configured
         if (strategy.shouldAutoStartNextSession) {
+          const taskId = currentTaskId ?? action.pausedTaskId;
+          if (taskId && entities[taskId]?.isDone) {
+            return of(actions.selectFocusTask());
+          }
           const duration = strategy.initialSessionDuration;
           actionsToDispatch.push(
             actions.startFocusSession({
@@ -744,10 +823,28 @@ export class FocusModeEffects {
         // Every completed session (including Flowtime, which dispatches
         // completeFocusSession before auto-starting its break) is logged here.
         ofType(actions.completeFocusSession),
-        withLatestFrom(this.store.select(selectors.selectLastSessionDuration)),
-        tap(([, duration]) => {
-          if (duration > 0) {
-            this.metricService.logFocusSession(duration);
+        withLatestFrom(
+          this.store.select(selectors.selectLastSessionDuration),
+          this.store.select(selectors.selectPausedTaskId),
+          this.taskService.currentTaskId$,
+          this.store.select(selectTaskEntities),
+        ),
+        tap(([action, duration, pausedTaskId, currentTaskId, entities]) => {
+          const trackedTaskId = this._sessionTracker.getTaskId();
+          if (duration > 0 || trackedTaskId) {
+            // Tracking may already have stopped for the break. Capture the
+            // round's task before finish clears its device-local draft.
+            const taskId = trackedTaskId ?? currentTaskId ?? pausedTaskId;
+            const entry = this._sessionTracker.finish(duration, !!action.isManual);
+            // Task attribution is optional; a missing local draft must never
+            // discard the completed duration itself.
+            if (duration > 0)
+              this.metricService.logFocusSession(duration, undefined, entry);
+            // This uses the ordinary per-task completion operation and its
+            // normal local effects. Undoing completion does not erase metrics.
+            if (taskId && entities[taskId] && !entities[taskId].isDone) {
+              this.taskService.setDone(taskId);
+            }
           }
         }),
       ),

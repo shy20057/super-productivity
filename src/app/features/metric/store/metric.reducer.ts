@@ -10,6 +10,7 @@ import { Metric, MetricState } from '../metric.model';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { createReducer, on } from '@ngrx/store';
 import { DEFAULT_METRIC_FOR_DAY } from '../metric.const';
+import { appendFocusSession } from '../focus-session.util';
 
 export const METRIC_FEATURE_NAME = 'metric';
 export const metricAdapter: EntityAdapter<Metric> = createEntityAdapter<Metric>();
@@ -47,30 +48,14 @@ export const metricReducer = createReducer<MetricState>(
 
   on(deleteMetric, (state, { id }) => metricAdapter.removeOne(id, state)),
 
-  on(logFocusSession, (state, { day, duration }) => {
+  on(logFocusSession, (state, { day, duration, entry }) => {
     if (duration <= 0) {
       return state;
     }
 
     const existing = state.entities[day];
-    if (existing) {
-      const focusSessions = existing.focusSessions ?? [];
-      return metricAdapter.updateOne(
-        {
-          id: day,
-          changes: {
-            focusSessions: [...focusSessions, duration],
-          },
-        },
-        state,
-      );
-    }
-
-    const newMetric: Metric = {
-      id: day,
-      ...DEFAULT_METRIC_FOR_DAY,
-      focusSessions: [duration],
-    };
-    return metricAdapter.upsertOne(newMetric, state);
+    const metric = existing ?? { id: day, ...DEFAULT_METRIC_FOR_DAY };
+    const updated = appendFocusSession(metric, duration, entry);
+    return updated === existing ? state : metricAdapter.upsertOne(updated, state);
   }),
 );

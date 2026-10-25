@@ -160,6 +160,23 @@ describe('FocusModeSessionPersistenceEffects', () => {
     expect(taskService.setCurrentId).not.toHaveBeenCalled();
   });
 
+  it('restores the open focus screen and keeps overtime running past its goal', () => {
+    const timer = workTimer({ startedAt: NOW - FORTY_MINUTES });
+    run(snapshotOf({ timer, isOverlayShown: true, isOvertimeEnabled: true }));
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      restoreFocusSession({
+        timer,
+        mode: FocusModeMode.Pomodoro,
+        currentCycle: 2,
+        pausedTaskId: null,
+        isOverlayShown: true,
+        isOvertimeEnabled: true,
+      }),
+    );
+    expect(taskService.setCurrentId).toHaveBeenCalledWith('task1');
+  });
+
   it('restores a break without tracking the task', () => {
     run(snapshotOf({ timer: workTimer({ purpose: 'break', duration: 5 * MINUTE }) }));
 

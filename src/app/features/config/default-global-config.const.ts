@@ -25,6 +25,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isFocusModeEnabled: true,
     isSchedulerEnabled: true,
     isPlannerEnabled: true,
+    isStatisticsEnabled: true,
     isBoardsEnabled: true,
     isScheduleDayPanelEnabled: true,
     isIssuesPanelEnabled: true,

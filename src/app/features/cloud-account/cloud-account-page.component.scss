@@ -1,0 +1,22 @@
+:host {
+  display: block;
+  padding: var(--s3) var(--s2);
+}
+
+.account-page {
+  max-width: var(--component-max-width);
+  margin: auto;
+}
+
+form,
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+mat-form-field {
+  flex: 1;
+}

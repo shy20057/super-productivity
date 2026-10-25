@@ -1,7 +1,16 @@
 <h1 mat-dialog-title>{{ T.F.SYNC.D_INITIAL_CFG.TITLE | translate }}</h1>
 
 <mat-dialog-content>
-  @if (_tmpUpdatedCfg) {
+  @if (cloudAccount) {
+    <p>{{ T.F.CLOUD_ACCOUNT.SYNC_CONFIRM | translate }}</p>
+    <p>{{ cloudAccount.email }}</p>
+    <p>{{ T.F.SYNC.FORM.SUPER_SYNC.E2E_ENCRYPTION_INFO | translate }}</p>
+    @if (cloudAccountBlocked()) {
+      <div class="callout callout--warning">
+        <p>{{ T.F.CLOUD_ACCOUNT.ACCOUNT_BLOCKED | translate }}</p>
+      </div>
+    }
+  } @else if (_tmpUpdatedCfg) {
     <form [formGroup]="form">
       <formly-form
         (modelChange)="updateTmpCfg($event)"
@@ -23,7 +32,7 @@
       {{ T.G.CANCEL | translate }}
     </button>
     <button
-      [disabled]="!form.valid"
+      [disabled]="!form.valid || cloudAccountBlocked()"
       (click)="save()"
       color="primary"
       mat-flat-button

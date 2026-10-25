@@ -127,6 +127,10 @@ export const selectPlannerDays = (
         allPlannedTasks,
         startOfNextDayDiffMs,
       );
+      const completedTasksByDay = groupCompletedTasksByDay(
+        activeTasks.values(),
+        startOfNextDayDiffMs,
+      );
       const calendarEventsByDay = groupCalendarEventsByDay(
         calendarEvents,
         startOfNextDayDiffMs,
@@ -141,6 +145,7 @@ export const selectPlannerDays = (
           plannerState,
           taskRepeatCfgs,
           plannedTasksByDay.get(dayDate) || [],
+          completedTasksByDay.get(dayDate) || [],
           calendarEventsByDay.get(dayDate) || [],
           unplannedTaskIdsToday,
           deadlineMap,
@@ -174,6 +179,7 @@ const getPlannerDay = (
   plannerState: any,
   taskRepeatCfgs: TaskRepeatCfg[],
   plannedTasksForDay: TaskWithDueTime[],
+  completedTasksForDay: TaskCopy[],
   calendarEventsForDay: ScheduleFromCalendarEvent[],
   unplannedTaskIdsToday: string[] | false,
   deadlineTasksByDay: Record<string, TaskCopy[]>,
@@ -192,6 +198,22 @@ const getPlannerDay = (
     .filter((t) => !!t)
     // Filter out tasks with dueDay in future if it is Today's column
     .filter((t) => !isTodayI || !t.dueDay || t.dueDay <= todayStr);
+
+  // Completion is independent of scheduling: unscheduled tasks still belong
+  // in their completion day's display, without synthesizing a persisted dueDay.
+  const displayedIds = new Set([
+    ...normalTasks.map((task) => task.id),
+    ...plannedTasksForDay.map((task) => task.id),
+  ]);
+  const completedIds = new Set(completedTasksForDay.map((task) => task.id));
+  const completedTasks: TaskCopy[] = [];
+  for (const task of completedTasksForDay) {
+    if (displayedIds.has(task.id)) continue;
+    // A completed parent represents its completed children, as in Today.
+    if (task.parentId && completedIds.has(task.parentId)) continue;
+    completedTasks.push(task);
+    displayedIds.add(task.id);
+  }
 
   const {
     repeatProjectionsForDay: allRepeatProjectionsForDay,
@@ -214,7 +236,7 @@ const getPlannerDay = (
   // without this the two views disagree on remaining time for done recurring
   // tasks. See #8220, #8232.
   const coveredRepeatCfgIds = new Set<string>();
-  for (const t of normalTasks) {
+  for (const t of [...normalTasks, ...completedTasks]) {
     if (t.repeatCfgId) coveredRepeatCfgIds.add(t.repeatCfgId);
   }
   for (const si of scheduledTaskItems) {
@@ -262,6 +284,7 @@ const getPlannerDay = (
     timeLimit: 0,
     itemsTotal:
       normalTasks.length +
+      completedTasks.length +
       noStartTimeRepeatProjections.length +
       repeatProjectionsForDay.length +
       scheduledTaskItems.length +
@@ -272,6 +295,7 @@ const getPlannerDay = (
       ...scheduledTaskItems,
     ].sort((a, b) => a.start - b.start),
     tasks: normalTasks,
+    completedTasks,
     deadlineTasks,
     noStartTimeRepeatProjections,
     allDayEvents,
@@ -343,6 +367,21 @@ const getAllRepeatableTasksForDay = (
     repeatProjectionsForDay,
     noStartTimeRepeatProjections,
   };
+};
+
+const groupCompletedTasksByDay = (
+  tasks: Iterable<Task>,
+  startOfNextDayDiffMs: number,
+): Map<string, TaskCopy[]> => {
+  const byDay = new Map<string, TaskCopy[]>();
+  for (const task of tasks) {
+    if (!task.isDone || !task.doneOn) continue;
+    const dayKey = getDbDateStr(new Date(task.doneOn - startOfNextDayDiffMs));
+    const completed = byDay.get(dayKey);
+    if (completed) completed.push(task);
+    else byDay.set(dayKey, [task]);
+  }
+  return byDay;
 };
 
 const groupPlannedTasksByDay = (

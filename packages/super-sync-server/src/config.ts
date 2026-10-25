@@ -147,12 +147,20 @@ export interface ServerConfig {
    * Should point to the reverse-proxied address users can access.
    */
   publicUrl: string;
+  /** Optional frontend origin for emailed login callbacks; other email links stay on publicUrl. */
+  webAppUrl?: string;
   cors: {
     enabled: boolean;
     allowedOrigins?: CorsOrigin[];
   };
   /** Peers whose X-Forwarded-* headers are trusted; see SERVER_TRUST_PROXY. */
   trustProxy: string[];
+  /** Optional HTTPS email delivery. When configured, takes precedence over SMTP. */
+  brevo?: {
+    apiKey: string;
+    fromEmail: string;
+    fromName: string;
+  };
   smtp?: {
     host: string;
     port: number;
@@ -345,12 +353,56 @@ export const loadConfigFromEnv = (
     }
   }
 
+  // Only the operator can choose the frontend callback destination.
+  const webAppUrl = process.env.WEB_APP_URL ?? config.webAppUrl;
+  if (webAppUrl !== undefined) {
+    const trimmed = webAppUrl.trim();
+    const originError =
+      'WEB_APP_URL must be an HTTP(S) origin without credentials, path, query or fragment';
+    // Check the original spelling too: URL parsing normalizes paths such as /account/..
+    // and accepts empty query/fragment delimiters that are not part of an origin.
+    if (!/^https?:\/\/[^/?#\\@\s]+\/?$/i.test(trimmed)) {
+      throw new Error(originError);
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      throw new Error(originError);
+    }
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+      throw new Error('WEB_APP_URL must use HTTPS in production');
+    }
+    config.webAppUrl = parsed.origin;
+    const isAllowed = config.cors.allowedOrigins?.some((origin) =>
+      origin instanceof RegExp
+        ? origin.test(parsed.origin)
+        : origin === '*' || origin === parsed.origin,
+    );
+    if (!config.cors.enabled || !isAllowed) {
+      throw new Error('WEB_APP_URL must be allowed by enabled CORS_ORIGINS');
+    }
+  }
+
   // Trusted reverse-proxy peers (comma-separated keywords, IPs or CIDR ranges)
   if (process.env.TRUST_PROXY) {
     const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
     if (trustProxy.length > 0) {
       config.trustProxy = trustProxy;
     }
+  }
+
+  const brevoApiKey = process.env.BREVO_API_KEY?.trim();
+  if (brevoApiKey) {
+    const fromEmail = process.env.BREVO_FROM_EMAIL?.trim();
+    if (!fromEmail) {
+      throw new Error('BREVO_FROM_EMAIL is required when BREVO_API_KEY is set');
+    }
+    config.brevo = {
+      apiKey: brevoApiKey,
+      fromEmail,
+      fromName: process.env.BREVO_FROM_NAME?.trim() || 'Super Productivity',
+    };
   }
 
   // SMTP Configuration

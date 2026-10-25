@@ -11,6 +11,123 @@ const importConfig = async () => {
   return await import('../src/config');
 };
 
+describe('loadConfigFromEnv - Brevo API', () => {
+  beforeEach(() => {
+    resetEnv();
+    process.env.NODE_ENV = 'test';
+    delete process.env.BREVO_API_KEY;
+    delete process.env.BREVO_FROM_EMAIL;
+    delete process.env.BREVO_FROM_NAME;
+  });
+  afterEach(resetEnv);
+
+  it('keeps API delivery disabled without a key', async () => {
+    const { loadConfigFromEnv } = await importConfig();
+    expect(loadConfigFromEnv().brevo).toBeUndefined();
+  });
+
+  it('requires the verified sender address with an API key', async () => {
+    process.env.BREVO_API_KEY = 'test-only-key';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(() => loadConfigFromEnv()).toThrow('BREVO_FROM_EMAIL');
+  });
+
+  it('loads a key and sender with a default display name', async () => {
+    process.env.BREVO_API_KEY = ' test-only-key ';
+    process.env.BREVO_FROM_EMAIL = ' sender@example.com ';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(loadConfigFromEnv().brevo).toEqual({
+      apiKey: 'test-only-key',
+      fromEmail: 'sender@example.com',
+      fromName: 'Super Productivity',
+    });
+  });
+});
+
+describe('loadConfigFromEnv - WEB_APP_URL', () => {
+  beforeEach(() => {
+    resetEnv();
+    delete process.env.WEB_APP_URL;
+    delete process.env.CORS_ENABLED;
+    process.env.NODE_ENV = 'test';
+    process.env.PUBLIC_URL = 'https://sync.example.com';
+    process.env.CORS_ORIGINS = 'https://app.example.com';
+  });
+
+  afterEach(resetEnv);
+
+  it('keeps frontend login redirects disabled when unset', async () => {
+    const { loadConfigFromEnv } = await importConfig();
+    expect(loadConfigFromEnv().webAppUrl).toBeUndefined();
+  });
+
+  it.each(['https://app.example.com', ' https://APP.example.com/ '])(
+    'normalizes the configured frontend origin %s',
+    async (value) => {
+      process.env.WEB_APP_URL = value;
+      const { loadConfigFromEnv } = await importConfig();
+      expect(loadConfigFromEnv().webAppUrl).toBe('https://app.example.com');
+    },
+  );
+
+  it('allows a local HTTP frontend outside production', async () => {
+    process.env.WEB_APP_URL = 'http://localhost:4200/';
+    process.env.CORS_ORIGINS = 'http://localhost:4200';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(loadConfigFromEnv().webAppUrl).toBe('http://localhost:4200');
+  });
+
+  it.each([
+    '',
+    '   ',
+    'not-a-url',
+    '//app.example.com',
+    'javascript:alert(1)',
+    'ftp://app.example.com',
+    'https://user:pass@app.example.com',
+    'https://@app.example.com',
+    'https://app.example.com/account',
+    'https://app.example.com/account/..',
+    'https://app.example.com?next=evil',
+    'https://app.example.com?',
+    'https://app.example.com/#/account',
+    'https://app.example.com/#',
+    'https://app.example.com:invalid',
+  ])('rejects a value that is not an HTTP(S) origin: %j', async (value) => {
+    process.env.WEB_APP_URL = value;
+    const { loadConfigFromEnv } = await importConfig();
+    expect(() => loadConfigFromEnv()).toThrow(/WEB_APP_URL/);
+  });
+
+  it('rejects an HTTP frontend in production', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.WEB_APP_URL = 'http://app.example.com';
+    process.env.CORS_ORIGINS = 'http://app.example.com';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(() => loadConfigFromEnv()).toThrow(/WEB_APP_URL.*HTTPS/);
+  });
+
+  it('rejects a frontend that cannot call the API under the CORS policy', async () => {
+    process.env.WEB_APP_URL = 'https://other.example.com';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(() => loadConfigFromEnv()).toThrow(/WEB_APP_URL.*CORS_ORIGINS/);
+  });
+
+  it('matches a frontend against parsed subdomain CORS patterns', async () => {
+    process.env.WEB_APP_URL = 'https://app.example.com';
+    process.env.CORS_ORIGINS = 'https://*.example.com';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(loadConfigFromEnv().webAppUrl).toBe('https://app.example.com');
+  });
+
+  it('rejects a frontend when browser CORS access is disabled', async () => {
+    process.env.WEB_APP_URL = 'https://app.example.com';
+    process.env.CORS_ENABLED = 'false';
+    const { loadConfigFromEnv } = await importConfig();
+    expect(() => loadConfigFromEnv()).toThrow(/WEB_APP_URL.*CORS/);
+  });
+});
+
 describe('parseCorsOrigin', () => {
   beforeEach(() => {
     resetEnv();

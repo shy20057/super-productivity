@@ -1,0 +1,329 @@
+<div class="statistics">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ T.F.STATISTICS.EYEBROW | translate }}</p>
+      <h1>{{ T.F.STATISTICS.TITLE | translate }}</h1>
+      <p class="muted">{{ T.F.STATISTICS.SUBTITLE | translate }}</p>
+    </div>
+    <nav
+      class="period-tabs"
+      [attr.aria-label]="T.F.STATISTICS.PERIOD | translate"
+    >
+      @for (option of viewOptions(); track option.id) {
+        <button
+          type="button"
+          [class.selected]="view() === option.id"
+          [attr.aria-current]="view() === option.id ? 'page' : null"
+          (click)="setView(option.id)"
+        >
+          {{ option.label | translate }}
+        </button>
+      }
+    </nav>
+  </header>
+
+  <div class="controls">
+    <div class="period-controls">
+      <div class="range-picker">
+        <button
+          mat-icon-button
+          type="button"
+          [disabled]="view() === 'all'"
+          [attr.aria-label]="T.F.STATISTICS.PREVIOUS | translate"
+          (click)="shiftPeriod(-1)"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="period-trigger"
+          [disabled]="view() === 'all'"
+          [attr.aria-label]="(T.F.STATISTICS.PERIOD | translate) + ': ' + headingRange()"
+          (click)="datePicker.open()"
+        >
+          <mat-icon aria-hidden="true">date_range</mat-icon>
+          <span>{{ headingRange() }}</span>
+          <mat-icon aria-hidden="true">expand_more</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          type="button"
+          [disabled]="futureDisabled()"
+          [attr.aria-label]="T.F.STATISTICS.NEXT | translate"
+          (click)="shiftPeriod(1)"
+        >
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+      <button
+        mat-button
+        type="button"
+        [disabled]="view() === 'all'"
+        (click)="resetPeriod()"
+      >
+        {{ T.F.STATISTICS.CURRENT | translate }}
+      </button>
+    </div>
+    <div class="filters">
+      <mat-form-field
+        appearance="outline"
+        subscriptSizing="dynamic"
+        class="filter-field"
+      >
+        <mat-label>{{ T.F.STATISTICS.PROJECT | translate }}</mat-label>
+        <mat-icon
+          matPrefix
+          aria-hidden="true"
+          >folder_open</mat-icon
+        >
+        <mat-select
+          [value]="projectId() ?? ''"
+          (selectionChange)="setProject($event.value)"
+        >
+          <mat-option value="">{{ T.F.STATISTICS.ALL_PROJECTS | translate }}</mat-option>
+          @for (option of service.projects(); track option.id) {
+            <mat-option [value]="option.id">{{ option.title }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field
+        appearance="outline"
+        subscriptSizing="dynamic"
+        class="filter-field date-field"
+      >
+        <mat-label>{{ T.F.STATISTICS.DATE | translate }}</mat-label>
+        <input
+          matInput
+          readonly
+          [matDatepicker]="datePicker"
+          [value]="anchorDate()"
+          [max]="todayDate()"
+          [disabled]="view() === 'all'"
+          (click)="datePicker.open()"
+          (dateChange)="selectCalendarDate($event.value)"
+        />
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="datePicker"
+        />
+        <mat-datepicker
+          #datePicker
+          [startView]="pickerStartView()"
+          [startAt]="anchorDate()"
+          (monthSelected)="selectCalendarMonth($event, datePicker)"
+          (yearSelected)="selectCalendarYear($event, datePicker)"
+        />
+      </mat-form-field>
+      <button
+        mat-button
+        type="button"
+        (click)="openInfo('rules')"
+      >
+        <mat-icon>info</mat-icon>{{ T.F.STATISTICS.RULES | translate }}
+      </button>
+    </div>
+  </div>
+
+  @if (!service.loaded()) {
+    <p
+      role="status"
+      class="empty-state"
+    >
+      {{ T.F.STATISTICS.LOADING | translate }}
+    </p>
+  } @else {
+    <section
+      class="summary-cards"
+      [attr.aria-label]="T.F.STATISTICS.SUMMARY | translate"
+    >
+      <article>
+        <span>{{ T.F.STATISTICS.TOTAL_TIME | translate }}</span
+        ><strong>{{ summary().duration | msToString }}</strong
+        ><small>{{ T.F.STATISTICS.ENDED_ONLY | translate }}</small>
+      </article>
+      <article>
+        <span>{{ T.F.STATISTICS.ROUNDS | translate }}</span
+        ><strong>{{ summary().count }}</strong
+        ><small>{{ T.F.STATISTICS.ROUND_HINT | translate }}</small>
+      </article>
+      <article>
+        <span>{{ T.F.STATISTICS.TASKS | translate }}</span
+        ><strong>{{ summary().taskCount }}</strong
+        ><small>{{ T.F.STATISTICS.TASK_HINT | translate }}</small>
+      </article>
+      <article>
+        <span>{{
+          (view() === 'day' ? T.F.STATISTICS.LONGEST : T.F.STATISTICS.ACTIVE_DAYS)
+            | translate
+        }}</span>
+        <strong>{{
+          view() === 'day' ? (summary().longest | msToString) : summary().activeDays
+        }}</strong>
+        <small>{{
+          (view() === 'day' ? T.F.STATISTICS.PAUSE_EXCLUDED : T.F.STATISTICS.ACTIVE_HINT)
+            | translate
+        }}</small>
+      </article>
+    </section>
+
+    @if (projectId()) {
+      <p class="context-note">{{ T.F.STATISTICS.PROJECT_DESCRIPTION | translate }}</p>
+    }
+    @if (summary().legacyDuration) {
+      <p class="context-note">
+        {{ T.F.STATISTICS.LEGACY_INCLUDED | translate }}:
+        {{ summary().legacyDuration | msToString }}
+        <button
+          type="button"
+          class="text-link"
+          (click)="openInfo('legacy')"
+        >
+          {{ T.F.STATISTICS.LEARN_MORE | translate }}
+        </button>
+      </p>
+    }
+
+    @if (view() === 'month' || view() === 'year') {
+      <div class="chart-grid">
+        <section class="panel full">
+          <header>
+            <div>
+              <h2>
+                {{
+                  (view() === 'year'
+                    ? T.F.STATISTICS.YEAR_HEATMAP
+                    : T.F.STATISTICS.MONTH_CALENDAR
+                  ) | translate
+                }}
+              </h2>
+              <p>
+                {{
+                  (view() === 'year'
+                    ? T.F.STATISTICS.YEAR_HEATMAP_HINT
+                    : T.F.STATISTICS.CALENDAR_HINT
+                  ) | translate
+                }}
+              </p>
+            </div>
+          </header>
+          <statistics-calendar
+            [days]="summary().daily"
+            [records]="summary().sessions"
+            [annual]="view() === 'year'"
+            [firstDayOfWeek]="firstDayOfWeek()"
+            [locale]="locale()"
+            [today]="today()"
+            (selected)="drill($event)"
+          />
+        </section>
+      </div>
+    }
+
+    @if (!summary().count) {
+      <section class="empty-state">
+        <mat-icon aria-hidden="true">timelapse</mat-icon>
+        <h2>{{ T.F.STATISTICS.EMPTY | translate }}</h2>
+        <p>{{ T.F.STATISTICS.EMPTY_DESCRIPTION | translate }}</p>
+        <button
+          mat-flat-button
+          type="button"
+          (click)="startFocus()"
+        >
+          {{ T.F.STATISTICS.VIEW_TASKS | translate }}
+        </button>
+      </section>
+    } @else if (view() !== 'month' && view() !== 'year') {
+      <div class="chart-grid">
+        @if (view() === 'all') {
+          <section class="panel full">
+            <header>
+              <div>
+                <h2>{{ T.F.STATISTICS.CUMULATIVE | translate }}</h2>
+                <p>{{ T.F.STATISTICS.CUMULATIVE_HINT | translate }}</p>
+              </div>
+            </header>
+            <statistics-chart
+              [title]="T.F.STATISTICS.CUMULATIVE | translate"
+              type="line"
+              [labels]="cumulative().labels"
+              [series]="cumulative().series"
+              [keys]="cumulative().keys"
+              [inlineLegend]="true"
+              (selected)="drill($event)"
+            />
+          </section>
+        }
+
+        @if (view() === 'week') {
+          <section class="panel full">
+            <header>
+              <div>
+                <h2>{{ T.F.STATISTICS.DAILY_TREND | translate }}</h2>
+                <p>{{ T.F.STATISTICS.TREND_HINT | translate }}</p>
+              </div>
+            </header>
+            <statistics-chart
+              [title]="T.F.STATISTICS.DAILY_TREND | translate"
+              [labels]="trend().labels"
+              [series]="trend().series"
+              [stacked]="true"
+              [inlineLegend]="true"
+            />
+          </section>
+        }
+
+        @if (view() === 'day') {
+          <section class="panel full">
+            <header>
+              <div>
+                <h2>{{ T.F.STATISTICS.TIMELINE | translate }}</h2>
+                <p>{{ T.F.STATISTICS.TIMELINE_HINT | translate }}</p>
+              </div>
+            </header>
+            <statistics-timeline
+              [records]="recent()"
+              [showAxis]="true"
+              (selected)="openRecord($event)"
+            />
+            @if (summary().sessions.length > recent().length) {
+              <button
+                mat-button
+                type="button"
+                (click)="openAllRounds()"
+              >
+                {{ T.F.STATISTICS.ALL_RECORDS | translate }}
+              </button>
+            }
+          </section>
+
+          <section class="panel full">
+            <header>
+              <div>
+                <h2>{{ T.F.STATISTICS.TASK_ALLOCATION | translate }}</h2>
+                <p>{{ T.F.STATISTICS.ALLOCATION_HINT | translate }}</p>
+              </div>
+            </header>
+            <statistics-chart
+              [title]="T.F.STATISTICS.TASK_ALLOCATION | translate"
+              type="doughnut"
+              [labels]="taskChart().labels"
+              [series]="taskChart().series"
+              [inlineLegend]="true"
+              [detailList]="true"
+            />
+          </section>
+        }
+      </div>
+    }
+    <footer class="page-footer">
+      <p>{{ T.F.STATISTICS.RULES_SHORT | translate }}</p>
+      <button
+        type="button"
+        class="text-link"
+        (click)="openInfo('legacy')"
+      >
+        {{ T.F.STATISTICS.LEGACY_HELP | translate }}
+      </button>
+    </footer>
+  }
+</div>

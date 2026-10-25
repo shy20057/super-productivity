@@ -48,7 +48,7 @@ export class PlannerComponent {
         .map(([dayDate]) => dayDate),
     );
     for (const day of days) {
-      if (day.tasks.length > 0) {
+      if (day.tasks.length > 0 || day.completedTasks?.length) {
         dayDates.add(day.dayDate);
       }
     }

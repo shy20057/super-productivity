@@ -400,16 +400,24 @@ export const focusModeReducer = createReducer(
     },
   ),
 
-  on(a.restoreFocusSession, (state, { timer, mode, currentCycle, pausedTaskId }) => ({
-    ...state,
-    timer,
-    mode,
-    currentCycle,
-    pausedTaskId,
-    // Non-intrusive like the native restore: overlay visibility is untouched.
-    currentScreen: timer.purpose === 'break' ? FocusScreen.Break : FocusScreen.Main,
-    mainState: FocusMainUIState.InProgress,
-  })),
+  on(
+    a.restoreFocusSession,
+    (
+      state,
+      { timer, mode, currentCycle, pausedTaskId, isOverlayShown, isOvertimeEnabled },
+    ) => ({
+      ...state,
+      timer,
+      mode,
+      currentCycle,
+      pausedTaskId,
+      // Keep a screen the user opened while startup sync was pending.
+      isOverlayShown: state.isOverlayShown || (isOverlayShown ?? false),
+      _isOvertimeEnabled: isOvertimeEnabled ?? false,
+      currentScreen: timer.purpose === 'break' ? FocusScreen.Break : FocusScreen.Main,
+      mainState: FocusMainUIState.InProgress,
+    }),
+  ),
 );
 
 // For backward compatibility, export the old State interface name

@@ -1,0 +1,175 @@
+<div class="calendar-scroll">
+  <div
+    [class.annual-layout]="annual()"
+    [style.--annual-week-count]="annualWeekCount()"
+  >
+    @if (annual()) {
+      <div
+        class="annual-months"
+        aria-hidden="true"
+      >
+        @for (month of annualMonths(); track month.column) {
+          <span [style.grid-column]="month.column">{{ month.label }}</span>
+        }
+      </div>
+    }
+    <div
+      class="weekdays"
+      [class.annual-weekdays]="annual()"
+      aria-hidden="true"
+    >
+      @for (weekday of weekdays(); track $index) {
+        <span>{{ weekday }}</span>
+      }
+    </div>
+    <div
+      class="calendar"
+      [class.annual]="annual()"
+      role="group"
+      [attr.aria-label]="T.F.STATISTICS.CALENDAR | translate"
+    >
+      @for (cell of cells(); track $index) {
+        @if (cell) {
+          <button
+            type="button"
+            class="day"
+            [class.level-1]="annual() && cell.level === 1"
+            [class.level-2]="annual() && cell.level === 2"
+            [class.level-3]="annual() && cell.level === 3"
+            [class.level-4]="annual() && cell.level === 4"
+            [class.future]="cell.future"
+            [class.today]="cell.key === today()"
+            [attr.aria-current]="cell.key === today() ? 'date' : null"
+            [disabled]="cell.future"
+            [attr.aria-label]="
+              annual()
+                ? cell.tooltip
+                : cell.key +
+                  ': ' +
+                  (cell.future
+                    ? (T.F.STATISTICS.FUTURE | translate)
+                    : (cell.duration | msToString: true) +
+                      ', ' +
+                      (T.F.STATISTICS.ROUNDS | translate) +
+                      ': ' +
+                      cell.count +
+                      (annual()
+                        ? ''
+                        : ', ' + (cell.percentage | number: '1.0-1' : locale()) + '%'))
+            "
+            [title]="
+              annual() ? cell.tooltip : cell.key + ': ' + (cell.duration | msToString)
+            "
+            (click)="selected.emit(cell.key)"
+          >
+            @if (!annual()) {
+              <span class="day-date">{{ cell.date }}</span>
+              <span
+                class="day-ring"
+                aria-hidden="true"
+              >
+                <svg
+                  viewBox="0 0 100 100"
+                  focusable="false"
+                >
+                  <circle
+                    class="ring-track"
+                    cx="50"
+                    cy="50"
+                    r="42"
+                  />
+                  @if (!cell.future) {
+                    @for (segment of cell.segments; track segment.id) {
+                      <circle
+                        class="ring-segment"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        pathLength="100"
+                        [attr.stroke-dasharray]="segment.dasharray"
+                        [attr.stroke-dashoffset]="segment.dashoffset"
+                        [style.stroke]="segment.color"
+                      >
+                        <title>
+                          {{
+                            segment.labelKey
+                              ? (segment.labelKey | translate)
+                              : segment.title
+                          }}: {{ segment.duration | msToString: true }}
+                        </title>
+                      </circle>
+                    }
+                  }
+                </svg>
+                <span class="ring-percentage">{{
+                  cell.future ? '—' : (cell.percentage | number: '1.0-1' : locale()) + '%'
+                }}</span>
+              </span>
+              <span class="day-totals">
+                <strong class="day-duration">{{
+                  cell.future ? '—' : (cell.duration | msToString: true)
+                }}</strong>
+                @if (cell.count && !cell.future) {
+                  <small class="day-rounds"
+                    >{{ cell.count }} {{ T.F.STATISTICS.UNIT_ROUNDS | translate }}</small
+                  >
+                }
+              </span>
+            }
+          </button>
+        } @else {
+          <span
+            class="blank"
+            aria-hidden="true"
+          ></span>
+        }
+      }
+    </div>
+  </div>
+</div>
+<p class="legend">
+  {{
+    (annual() ? T.F.STATISTICS.CALENDAR_LEGEND : T.F.STATISTICS.CALENDAR_RING_LEGEND)
+      | translate
+  }}
+</p>
+@if (annual()) {
+  <div
+    class="heatmap-scale"
+    aria-hidden="true"
+  >
+    <span>0 {{ T.F.STATISTICS.MINUTES | translate }}</span>
+    @for (level of [0, 1, 2, 3, 4]; track level) {
+      <span
+        class="scale-cell"
+        [class.level-1]="level === 1"
+        [class.level-2]="level === 2"
+        [class.level-3]="level === 3"
+        [class.level-4]="level === 4"
+      ></span>
+    }
+    <span>{{
+      maxDuration()
+        ? (maxDuration() | msToString: true)
+        : '0 ' + (T.F.STATISTICS.MINUTES | translate)
+    }}</span>
+  </div>
+}
+@if (!annual() && taskLegend().length) {
+  <details class="task-legend">
+    <summary>{{ T.F.STATISTICS.TASK_ALLOCATION | translate }}</summary>
+    <ul>
+      @for (task of taskLegend(); track task.id) {
+        <li>
+          <span
+            class="task-color"
+            [style.background-color]="task.color"
+            aria-hidden="true"
+          ></span>
+          <span>{{ task.labelKey ? (task.labelKey | translate) : task.title }}</span>
+          <span class="task-duration">{{ task.duration | msToString: true }}</span>
+        </li>
+      }
+    </ul>
+  </details>
+}

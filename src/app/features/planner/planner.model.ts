@@ -15,6 +15,8 @@ export interface PlannerDay {
   timeLimit: number;
   itemsTotal: number;
   tasks: TaskCopy[];
+  /** Completion-day rows without a matching planning row; not a drag ordering list. */
+  completedTasks?: TaskCopy[];
   deadlineTasks: TaskCopy[];
   noStartTimeRepeatProjections: NoStartTimeRepeatProjection[];
   allDayEvents: ScheduleFromCalendarEvent[];

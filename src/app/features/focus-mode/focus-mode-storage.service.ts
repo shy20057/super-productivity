@@ -3,8 +3,8 @@ import { LS } from '../../core/persistence/storage-keys.const';
 import { FocusModeMode, TimerState } from './focus-mode.model';
 
 /**
- * A running or paused focus session, kept so it survives the WebView being
- * killed in the background on iOS.
+ * A running or paused focus session, kept across page reloads, desktop restarts
+ * and the iOS WebView being killed in the background.
  */
 export interface FocusSessionSnapshot {
   timer: TimerState;
@@ -13,6 +13,9 @@ export interface FocusSessionSnapshot {
   pausedTaskId: string | null;
   trackedTaskId: string | null;
   savedAt: number;
+  /** Older device-local snapshots omit these UI/session flags. */
+  isOverlayShown?: boolean;
+  isOvertimeEnabled?: boolean;
 }
 
 const isSnapshot = (value: unknown): value is FocusSessionSnapshot => {

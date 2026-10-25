@@ -30,6 +30,9 @@ import { MatList, MatListItem } from '@angular/material/list';
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { take } from 'rxjs/operators';
+import { getFocusSessionEntries, getFocusSessionsSignature } from '../focus-session.util';
 
 const CHART_DAYS = 28;
 const CHART_COLOR = '#4bc0c0';
@@ -72,6 +75,11 @@ export class DialogFocusSessionEditComponent {
   readonly dialogData = inject<{ day: string; focusSessions: number[] }>(MAT_DIALOG_DATA);
   readonly T = T;
   readonly todayStr = this._dateService.todayStr();
+  private readonly _originalMetric = toSignal(
+    this._metricService.getMetricForDay$(this.dialogData.day).pipe(take(1)),
+  );
+  private readonly _originalIndices: (number | null)[] =
+    this.dialogData.focusSessions.map((_, index) => index);
 
   // State
   readonly localSessions = signal<number[]>([...this.dialogData.focusSessions]);
@@ -131,6 +139,7 @@ export class DialogFocusSessionEditComponent {
   };
 
   deleteSession(index: number): void {
+    this._originalIndices.splice(index, 1);
     this.localSessions.update((sessions) => {
       const newSessions = [...sessions];
       newSessions.splice(index, 1);
@@ -139,6 +148,7 @@ export class DialogFocusSessionEditComponent {
   }
 
   updateSession(index: number, duration: number): void {
+    if (this.localSessions()[index] !== duration) this._originalIndices[index] = null;
     this.localSessions.update((sessions) => {
       const newSessions = [...sessions];
       newSessions[index] = duration;
@@ -149,6 +159,7 @@ export class DialogFocusSessionEditComponent {
   addSession(): void {
     const duration = this.newSessionDuration();
     if (duration > 0) {
+      this._originalIndices.push(null);
       this.localSessions.update((sessions) => [...sessions, duration]);
       this.newSessionDuration.set(0);
     }
@@ -157,10 +168,19 @@ export class DialogFocusSessionEditComponent {
   save(): void {
     const day = this.selectedDateStr();
     const sessions = this.localSessions();
+    const source = this._originalMetric();
+    const records = source ? getFocusSessionEntries(source) : [];
+    const details = this._originalIndices.map((index) =>
+      index === null || day !== this.dialogData.day
+        ? null
+        : (records[index]?.details ?? null),
+    );
 
     // Update the metric with the new focus sessions array
     this._metricService.updateMetric(day, {
       focusSessions: sessions,
+      focusSessionDetails: details,
+      focusSessionDetailsSignature: getFocusSessionsSignature(sessions),
     });
 
     this.close();

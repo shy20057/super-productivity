@@ -1,0 +1,46 @@
+# Review README.md before creating this service. No database is created here.
+services:
+  - type: web
+    name: super-productivity-sync
+    runtime: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./packages/super-sync-server/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: off
+    healthCheckPath: /live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: '1900'
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=256
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REQUIRE_DATABASE_POOL_LIMITS
+        value: 'true'
+      - key: RUN_MIGRATIONS_ON_STARTUP
+        value: 'true'
+      - key: PUBLIC_URL
+        sync: false
+      - key: WEB_APP_URL
+        value: https://super-productivity-s3324.sacredpika18.chatgpt.site
+      - key: CORS_ORIGINS
+        value: https://super-productivity-s3324.sacredpika18.chatgpt.site
+      - key: WEBAUTHN_RP_ID
+        sync: false
+      - key: WEBAUTHN_ORIGIN
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        sync: false
+      - key: BREVO_FROM_NAME
+        value: Super Productivity

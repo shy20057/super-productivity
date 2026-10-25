@@ -89,12 +89,25 @@
     <!-- -->
     @if (
       day.tasks.length === 0 &&
+      !day.completedTasks?.length &&
       day.noStartTimeRepeatProjections.length === 0 &&
       day.allDayEvents.length === 0
     ) {
       <div class="empty">{{ T.F.PLANNER.NO_TASKS | translate }}</div>
     }
   </div>
+
+  @if (day.completedTasks?.length) {
+    <div class="normal-tasks-items">
+      @for (task of day.completedTasks; track task.id) {
+        <planner-task
+          [task]="task"
+          [day]="day.dayDate"
+          [focusable]="true"
+        ></planner-task>
+      }
+    </div>
+  }
 
   <add-task-inline [planForDay]="day.dayDate"></add-task-inline>
 </div>

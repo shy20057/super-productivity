@@ -47,6 +47,23 @@ describe('privacyExport', () => {
       expect(result.title).not.toBe('My Private Task');
     });
 
+    it('masks task and project snapshots in focus statistics', () => {
+      const input = {
+        metric: {
+          focusSessionDetails: [
+            {
+              allocations: [
+                { taskTitle: 'Private study', projectTitle: 'Private project' },
+              ],
+            },
+          ],
+        },
+      };
+      const output = privacyExport(input);
+      expect(output).not.toContain('Private study');
+      expect(output).not.toContain('Private project');
+    });
+
     it('should mask caldavUrl field', () => {
       const input = { caldavUrl: 'https://caldav.example.com/calendar' };
       const result = JSON.parse(privacyExport(input));

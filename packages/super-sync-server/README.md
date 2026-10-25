@@ -52,10 +52,10 @@ app as clients. It needs:
   reachable from the internet and not used by another service: Caddy obtains
   and renews the TLS certificate for `DOMAIN` automatically. Running without a
   public domain, or behind an existing reverse proxy, is not a tested recipe.
-- **A working SMTP account.** Every sign-up is confirmed by an emailed
-  verification link, and login and recovery links are emailed too. The server
-  starts without `SMTP_HOST`, but with `NODE_ENV=production` (the Docker
-  default) every email then fails and nobody can finish signing up. Never
+- **Working email delivery through SMTP or Brevo API.** Every sign-up is confirmed
+  by an emailed verification link, and login and recovery links are emailed too.
+  Without either transport configured, production email fails and nobody can
+  finish signing up. Never
   enable `TEST_MODE` to skip email: it exposes test routes and is rejected in
   production.
 - Docker with the Compose plugin, `curl`, `git`, and `jq` on the deploy host.
@@ -115,7 +115,7 @@ and uses `sync.your-domain.com` as the placeholder domain):
 | `WEBAUTHN_RP_ID`                  | Your domain without protocol or port. Passkeys bind to it — changing it later invalidates every registered passkey.                                                                                                                                             |
 | `WEBAUTHN_ORIGIN`                 | Normally the same as `PUBLIC_URL`.                                                                                                                                                                                                                              |
 | `JWT_SECRET`, `POSTGRES_PASSWORD` | `openssl rand -base64 32` for `JWT_SECRET`, `openssl rand -hex 24` for `POSTGRES_PASSWORD` (it is embedded in `DATABASE_URL`, where a base64 `/` breaks parsing); both ship empty and the stack will not start without them. Keep `.env` private (`chmod 600`). |
-| `SMTP_*`                          | Host, port, TLS mode, user, password and sender address of your mail provider. Without them, sign-up emails fail.                                                                                                                                               |
+| `SMTP_*`                          | Host, port, TLS mode, user, password and sender for SMTP delivery. Alternatively configure BREVO_API_KEY and BREVO_FROM_EMAIL for HTTPS delivery.                                                                                                               |
 | `ALLOWED_EMAILS`                  | **Set this for a private install**, e.g. `you@example.com` or `*@example.com`. Left empty, anyone who can reach the server may register.                                                                                                                        |
 
 Leave `CORS_ORIGINS` at its default unless you also host the web app yourself
@@ -356,9 +356,10 @@ All configuration is done via environment variables.
 | `DATABASE_URL`                          | -                                    | PostgreSQL connection string (e.g. `postgresql://user:pass@localhost:5432/db`)                                                                                                                                               |
 | `JWT_SECRET`                            | -                                    | **Required.** Secret for signing JWTs (min 32 chars)                                                                                                                                                                         |
 | `PUBLIC_URL`                            | -                                    | **Required.** Public URL used for email links (e.g. `https://sync.example.com`). Must be `https://` in production.                                                                                                           |
+| `WEB_APP_URL`                           | unset                                | Optional web app origin for login email callbacks. HTTP(S) origin only (optional trailing `/`); HTTPS required in production. Must be allowed by enabled `CORS_ORIGINS`. Other email links still use `PUBLIC_URL`.           |
 | `CORS_ORIGINS`                          | `https://app.super-productivity.com` | Allowed browser origins, comma-separated. The desktop and mobile apps need no entry. Add the exact origin (e.g. `https://sp.example.com`) only if you host the web app separately. `*` is rejected at startup in production. |
 | `TRUST_PROXY`                           | `loopback,uniquelocal`               | Peers whose `X-Forwarded-*` headers are trusted: proxy-addr keywords, IPs or CIDR ranges. Add e.g. `100.64.0.0/10` for a Tailscale proxy.                                                                                    |
-| `SMTP_HOST`                             | -                                    | SMTP server for verification, login and recovery emails. **Required in production** — without it the server starts, but every email fails.                                                                                   |
+| `SMTP_HOST`                             | -                                    | SMTP server for verification, login and recovery emails. Required when Brevo API delivery is not configured.                                                                                                                 |
 | `WEBAUTHN_RP_ID`                        | `localhost`                          | **Required for passkeys.** Your domain, without protocol or port. Passkeys bind to this — changing it invalidates every registered credential.                                                                               |
 | `WEBAUTHN_ORIGIN`                       | `http://localhost:1900`              | **Required for passkeys.** Where users reach the auth UI, with protocol.                                                                                                                                                     |
 | `WEBAUTHN_RP_NAME`                      | value of `WEBAUTHN_RP_ID`            | Name shown in your users' OS passkey prompt.                                                                                                                                                                                 |
@@ -366,6 +367,40 @@ All configuration is done via environment variables.
 | `SUPERSYNC_DEFAULT_STORAGE_QUOTA_BYTES` | `104857600` (100 MB)                 | Quota for accounts created from now on. Existing accounts keep the value stored on their row.                                                                                                                                |
 | `CAPTURE_OAUTH_CLIENTS`                 | Claude and Claude Code               | JSON array of `{ "clientId": "https://…", "name": "…", "redirectUris": ["https://…"] }`; replaces the pinned OAuth client allowlist. No dynamic registration or URL fetching.                                                |
 | `CAPTURE_CONNECTOR_ENABLED`             | `false`                              | Agent task capture: the `/mcp` endpoint and `/api/capture`. Single instance only (in-process retry window and per-grant limit).                                                                                              |
+
+### Email delivery through Brevo API
+
+As an alternative to SMTP, configure `BREVO_API_KEY` and `BREVO_FROM_EMAIL`
+(the exact verified sender address). Optionally set `BREVO_FROM_NAME`; it defaults
+to `Super Productivity`. The server uses Brevo's HTTPS transactional-email API
+for verification, login and recovery messages. No SDK is required.
+
+When the API key is configured, it takes precedence over SMTP settings. API
+failures return a delivery failure without retrying through SMTP. With no API
+key, the existing SMTP configuration continues to work. Production needs one
+working email transport, not both. Keep real keys in the private server `.env`
+or host environment, never in source or frontend assets. `SMTP_PASS` accepts an
+SMTP key; it cannot be substituted with a Brevo API key.
+
+Local `.env` files are read from the backend process's working directory. See
+[the personal cloud deployment guide](../../deploy/cloud-sync/README.md) for
+the Render/Supabase setup and the corresponding environment variables.
+
+### Login email callbacks
+
+Leave `WEB_APP_URL` unset to keep login emails pointing to the server's
+`/magic-login?token=...` page. If your frontend supports the Account login flow,
+set it to that app's origin (for example `https://sp.example.com`) and include
+the same origin in `CORS_ORIGINS`. Credentials, paths other than `/`, queries and
+fragments are rejected at startup; HTTPS is required in production.
+
+Login emails then point to `https://sp.example.com/#/account?loginToken=...`.
+The parameter is a URL-encoded, one-time email token that the frontend redeems
+through the existing `/api/login/magic-link/verify` endpoint. The destination
+comes only from operator configuration, never from a login request. The app
+must clear the token from its URL before sending the verification request;
+long-lived authentication tokens do not belong in URLs. Registration,
+verification and recovery remain on the server's existing pages.
 
 ### Legal pages
 

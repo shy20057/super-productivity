@@ -23,6 +23,7 @@ import {
 import { map } from 'rxjs/operators';
 import { DEFAULT_METRIC_FOR_DAY } from './metric.const';
 import { DateService } from 'src/app/core/date/date.service';
+import { FocusSessionEntry } from './focus-session.model';
 
 const MIN_FOCUS_SESSION_DURATION = 1000;
 
@@ -93,7 +94,11 @@ export class MetricService {
     this._store$.dispatch(upsertMetric({ metric }));
   }
 
-  logFocusSession(duration: number, day: string = this._dateService.todayStr()): void {
+  logFocusSession(
+    duration: number,
+    day: string = this._dateService.todayStr(),
+    entry?: FocusSessionEntry,
+  ): void {
     if (!duration || duration < MIN_FOCUS_SESSION_DURATION) {
       return;
     }
@@ -102,6 +107,7 @@ export class MetricService {
       logFocusSession({
         day,
         duration,
+        ...(entry ? { entry } : {}),
       }),
     );
   }

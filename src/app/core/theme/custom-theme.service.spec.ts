@@ -70,6 +70,7 @@ describe('CustomThemeService', () => {
   afterEach(() => {
     localStorage.removeItem(LS.CUSTOM_THEME);
     document.getElementById(STYLESHEET_ID)?.remove();
+    document.documentElement.style.removeProperty('--theme-wallpaper');
     document
       .querySelectorAll('[data-custom-theme-candidate]')
       .forEach((candidate) => candidate.remove());
@@ -185,6 +186,23 @@ describe('CustomThemeService', () => {
     const service = buildService();
     await service.loadTheme({ kind: 'builtin', id: 'default' });
     expect(document.getElementById(STYLESHEET_ID)).toBeNull();
+  });
+
+  it('hands a built-in theme its bundled wallpaper and takes it away again', async () => {
+    const service = buildService();
+    await finishBuiltInLoad(
+      service.loadTheme({ kind: 'builtin', id: 'home-evening' }),
+      'home-evening',
+    );
+    expect(
+      document.documentElement.style.getPropertyValue('--theme-wallpaper'),
+    ).toContain('assets/themes/wallpapers/home-evening.jpg');
+
+    await finishBuiltInLoad(
+      service.loadTheme({ kind: 'builtin', id: 'dracula' }),
+      'dracula',
+    );
+    expect(document.documentElement.style.getPropertyValue('--theme-wallpaper')).toBe('');
   });
 
   it('injects a <style> element for user themes from storage', async () => {

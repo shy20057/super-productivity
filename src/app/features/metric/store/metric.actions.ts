@@ -1,6 +1,7 @@
 import { createAction } from '@ngrx/store';
 import { Update } from '@ngrx/entity';
 import { Metric } from '../metric.model';
+import { FocusSessionEntry } from '../focus-session.model';
 import { PersistentActionMeta } from '../../../op-log/core/persistent-action.interface';
 import { OpType } from '../../../op-log/core/operation.types';
 
@@ -66,7 +67,7 @@ export const deleteMetric = createAction(
 
 export const logFocusSession = createAction(
   MetricActionTypes.LogFocusSession,
-  (metricProps: { day: string; duration: number }) => ({
+  (metricProps: { day: string; duration: number; entry?: FocusSessionEntry }) => ({
     ...metricProps,
     meta: {
       isPersistent: true,

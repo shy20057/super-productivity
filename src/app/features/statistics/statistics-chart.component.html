@@ -1,0 +1,127 @@
+<figure
+  [attr.aria-label]="title()"
+  [class.with-details]="detailList() && inlineLegend()"
+>
+  @switch (type()) {
+    @case ('doughnut') {
+      <lazy-chart
+        type="doughnut"
+        [labels]="labels()"
+        [datasets]="datasets()"
+        [options]="options()"
+        [legend]="false"
+        height="280px"
+      />
+    }
+    @case ('line') {
+      <lazy-chart
+        type="line"
+        [labels]="labels()"
+        [datasets]="datasets()"
+        [options]="options()"
+        [legend]="false"
+        height="280px"
+      />
+    }
+    @default {
+      <lazy-chart
+        type="bar"
+        [labels]="labels()"
+        [datasets]="datasets()"
+        [options]="options()"
+        [legend]="false"
+        height="280px"
+      />
+    }
+  }
+  @if (taskLegend().length) {
+    <ul
+      class="chart-legend"
+      [attr.aria-label]="title()"
+    >
+      @for (task of taskLegend(); track $index) {
+        <li>
+          <span
+            class="legend-color"
+            [style.background-color]="task.color"
+            aria-hidden="true"
+          ></span>
+          <span class="legend-label">{{ task.label }}</span>
+          <strong class="legend-value">{{ task.valueLabel }}</strong>
+        </li>
+      }
+    </ul>
+  }
+  @if (inlineLegend()) {
+    <ul
+      class="chart-legend"
+      [attr.aria-label]="title()"
+    >
+      @for (row of accessibleRows(); track $index) {
+        <li>
+          @if (row.color) {
+            <span
+              class="legend-color"
+              [style.background-color]="row.color"
+              aria-hidden="true"
+            ></span>
+          }
+          @if (detailList()) {
+            <span class="legend-label">{{ row.label }}</span>
+          }
+          <strong class="legend-value"
+            >{{ row.valueLabel }}
+            @if (unit() === 'rounds') {
+              {{ T.F.STATISTICS.UNIT_ROUNDS | translate }}
+            }
+          </strong>
+          @if (!detailList()) {
+            <span class="legend-label">{{ row.label }}</span>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <figcaption>
+      {{
+        (unit() === 'hours' ? T.F.STATISTICS.TIME : T.F.STATISTICS.UNIT_ROUNDS)
+          | translate
+      }}
+    </figcaption>
+    <details>
+      <summary>{{ T.F.STATISTICS.CHART_DATA | translate }}</summary>
+      <table>
+        <thead>
+          <tr>
+            <th>{{ title() }}</th>
+            <th>
+              {{
+                (unit() === 'hours' ? T.F.STATISTICS.TIME : T.F.STATISTICS.UNIT_ROUNDS)
+                  | translate
+              }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of accessibleRows(); track $index) {
+            <tr>
+              <td>
+                @if (row.key) {
+                  <button
+                    type="button"
+                    (click)="selected.emit(row.key)"
+                  >
+                    {{ row.label }}
+                  </button>
+                } @else {
+                  {{ row.label }}
+                }
+              </td>
+              <td>{{ row.valueLabel }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </details>
+  }
+</figure>
