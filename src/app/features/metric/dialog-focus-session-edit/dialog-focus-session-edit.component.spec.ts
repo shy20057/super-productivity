@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { DateService } from 'src/app/core/date/date.service';
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
 import { MetricService } from '../metric.service';
@@ -12,7 +13,13 @@ describe('DialogFocusSessionEditComponent', () => {
       providers: [
         { provide: MAT_DIALOG_DATA, useValue: { day, focusSessions: [25 * 60000] } },
         { provide: MatDialogRef, useValue: {} },
-        { provide: MetricService, useValue: {} },
+        {
+          provide: MetricService,
+          useValue: {
+            getMetricForDay$: () => of({ id: day, focusSessions: [] }),
+            updateMetric: () => {},
+          },
+        },
         { provide: TranslateService, useValue: { instant: (key: string) => key } },
         { provide: DateService, useValue: { todayStr: () => '2026-01-07' } },
         {
