@@ -20,7 +20,7 @@
 
 - [x] Remove account route/header entry, account component/service/model/specs and deployment config asset. Restore ordinary sync-dialog rendering/save flow without account-specific handoffs.
 - [x] Remove obsolete English/Chinese account strings using existing generated-key workflow; remove the now-obsolete account documentation and auth service-worker exceptions.
-- [x] Retire the custom Sites server/scaffold while retaining ignored runtime/storage directories. Keep the same Site ID and existing storage binding, and prepare a dependency-free static hosting manifest and asset-copy helper. No cloud mutation.
+- [x] Retire the custom Sites server/scaffold while retaining ignored runtime/storage directories. Keep the same Site ID and prepare a dependency-free static hosting manifest and asset-copy helper. Static hosting requires unused d1/r2 bindings to be null; no cloud resource or data deletion is performed by this preparation.
 - [x] Run batched checkFile for edited TypeScript, compile Angular and inspect remaining references. Run the focused original sync-dialog/header regressions after approval. Report local-only status and remaining original-server configuration needs.
 
 ## Validation and review

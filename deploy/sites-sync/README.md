@@ -20,10 +20,11 @@ In the dedicated Sites source checkout, include dist/ as tracked static source:
 remove the local /dist/ ignore rule from that checkout before the source helper
 commits it. The main application checkout keeps generated artifacts ignored.
 
-Preserve the existing Site project ID and audience. The BUCKET binding is
-retained solely to avoid removing previously provisioned storage. No shipped
-application code uses it. Existing R2 files and device-local IndexedDB data,
-provider credentials, encryption passwords and preview storage are not deleted.
+Preserve the existing Site project ID and audience. Static Sites cannot declare
+runtime bindings, so d1 and r2 are null. No shipped application code uses the
+retired BUCKET binding. Preparing this artifact performs no cloud resource or
+data deletion, and does not change device-local IndexedDB data, provider
+credentials, encryption passwords or preview storage.
 The ignored runtime/dependency directories may contain prior local preview data;
 they are not part of the static artifact or source package.
 
