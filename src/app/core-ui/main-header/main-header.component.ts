@@ -48,7 +48,6 @@ import { DesktopPanelButtonsComponent } from './desktop-panel-buttons/desktop-pa
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FocusButtonComponent } from './focus-button/focus-button.component';
 import { EmlDropDirective } from '../../core/drop-paste-input/eml-drop.directive';
-import { RouterLink } from '@angular/router';
 
 /** One `DOM_DELTA_LINE` notch, in CSS pixels. Matches the row's icon metrics. */
 const WHEEL_LINE_HEIGHT_PX = 16;
@@ -67,7 +66,6 @@ const ACTION_ROW_REVEAL_PIN_MS = 400;
   styleUrls: ['./main-header.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     MatIconButton,
     MatIcon,
     MatTooltip,

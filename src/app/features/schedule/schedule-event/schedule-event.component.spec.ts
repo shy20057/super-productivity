@@ -440,6 +440,30 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
     expect(taskService.remove).not.toHaveBeenCalled();
   }));
 
+  describe('done tasks', () => {
+    it('should mark a completed task as done so it stays visible but dimmed', () => {
+      fixture.componentRef.setInput('event', {
+        ...makeTaskScheduleEvent(),
+        data: {
+          id: 'task-1',
+          title: 'Task',
+          timeEstimate: 3600000,
+          isDone: true,
+        } as any,
+      });
+      fixture.detectChanges();
+
+      expect(component.cssClass()).toContain('is-done');
+    });
+
+    it('should not mark an open task as done', () => {
+      fixture.componentRef.setInput('event', makeTaskScheduleEvent());
+      fixture.detectChanges();
+
+      expect(component.cssClass()).not.toContain('is-done');
+    });
+  });
+
   describe('style', () => {
     it('should render overlapping events in equal-width lanes', () => {
       fixture.componentRef.setInput(

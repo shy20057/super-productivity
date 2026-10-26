@@ -13,14 +13,6 @@ import {
 import { TagTaskPageComponent } from './pages/tag-task-page/tag-task-page.component';
 
 export const APP_ROUTES: Routes = [
-  {
-    path: 'account',
-    loadComponent: () =>
-      import('./features/cloud-account/cloud-account-page.component').then(
-        (module) => module.CloudAccountPageComponent,
-      ),
-    data: { page: 'account' },
-  },
   // Eagerly loaded — this is the main view
   {
     path: 'tag/:id/tasks',

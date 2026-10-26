@@ -50,7 +50,8 @@ const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> =
   const providers: SyncProviderBase<SyncProviderId>[] = [
     createDropboxProvider({
       appKey: DROPBOX_APP_KEY,
-      basePath: environment.production ? `/` : `/DEV/`,
+      // Local and hosted clients share /DEV/ within the Dropbox app directory.
+      basePath: '/DEV/',
     }) as SyncProviderBase<SyncProviderId>,
     createWebdavProvider(extraPath) as SyncProviderBase<SyncProviderId>,
     createSuperSyncProvider() as SyncProviderBase<SyncProviderId>,

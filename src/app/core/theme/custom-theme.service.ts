@@ -154,14 +154,6 @@ export const BUILT_IN_THEMES: CustomTheme[] = [
     requiredMode: 'dark',
   },
   {
-    id: 'home-evening',
-    name: '居家 · 静夜 (macOS)',
-    kind: 'builtin',
-    url: 'assets/themes/home-evening.css',
-    wallpaperUrl: 'assets/themes/wallpapers/home-evening.jpg',
-    requiredMode: 'dark',
-  },
-  {
     id: 'liquid-glass',
     name: 'Liquid Glass (macOS)',
     kind: 'builtin',

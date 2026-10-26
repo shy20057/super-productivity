@@ -188,23 +188,6 @@ describe('CustomThemeService', () => {
     expect(document.getElementById(STYLESHEET_ID)).toBeNull();
   });
 
-  it('hands a built-in theme its bundled wallpaper and takes it away again', async () => {
-    const service = buildService();
-    await finishBuiltInLoad(
-      service.loadTheme({ kind: 'builtin', id: 'home-evening' }),
-      'home-evening',
-    );
-    expect(
-      document.documentElement.style.getPropertyValue('--theme-wallpaper'),
-    ).toContain('assets/themes/wallpapers/home-evening.jpg');
-
-    await finishBuiltInLoad(
-      service.loadTheme({ kind: 'builtin', id: 'dracula' }),
-      'dracula',
-    );
-    expect(document.documentElement.style.getPropertyValue('--theme-wallpaper')).toBe('');
-  });
-
   it('injects a <style> element for user themes from storage', async () => {
     storageMock.getTheme.and.resolveTo({
       id: 'dracula',

@@ -101,26 +101,6 @@
     }
   },
   "F": {
-    "CLOUD_ACCOUNT": {
-      "TITLE": "Account",
-      "INTRO": "Use an email link to connect your devices with encrypted SuperSync. Your tasks remain available offline.",
-      "CURRENT_ACCOUNT": "Configured account",
-      "LOADING": "Loading account settings…",
-      "UNAVAILABLE": "Cloud sign-in is not available in this installation yet. You can keep using your local tasks offline.",
-      "SENDING": "Sending your sign-in link…",
-      "SENT": "If this email belongs to a verified account, a sign-in link is on its way. Open it to continue setting up sync.",
-      "VERIFYING": "Checking your sign-in link…",
-      "AUTHENTICATED": "Email verified. Continue to confirm sync for this device.",
-      "ACCOUNT_BLOCKED": "This device already has another sync account or its previous account cannot be confirmed. Sign in with the existing account. To use a different account, first back up your data and use a separate browser profile or installation.",
-      "ERROR": "Sign-in could not be completed. Request a new email link and try again.",
-      "CONTINUE_SYNC": "Continue to sync setup",
-      "EMAIL": "Email address",
-      "SEND_LINK": "Send sign-in link",
-      "REGISTER": "Create an account on the cloud server",
-      "MANAGE_SYNC": "Manage sync",
-      "CONTINUE_OFFLINE": "Back to my tasks",
-      "SYNC_CONFIRM": "Connect this device to the verified account below. The existing sync setup will handle your encryption password and any differences between local and cloud data."
-    },
     "IOS_SHARE": {
       "SAVE": "Save",
       "DESTINATION": "Inbox",

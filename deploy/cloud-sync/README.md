@@ -101,25 +101,15 @@ purchase is included in the free email plan or buy one without approval.
    Blueprint keeps future automatic deploys off; applying it still starts the
    initial deployment and its migrations.
 
-## Enable the frontend and first sync
+## Configure the original sync controls
 
-After the backend is working, set `src/assets/cloud-account.json` to its HTTPS
-origin, build the web app, and publish the reviewed build. The default
-`{"serverUrl":null}` intentionally displays that cloud login is unavailable.
-This public asset contains only a URL, never database credentials or JWT secrets.
+In **Settings → Sync & Backup → Sync**, choose **SuperSync**, enter your deployed
+server's HTTPS URL and use the provider's existing authentication flow. Configure
+the server to allow the exact origins used by your local and hosted frontends.
 
-Export a JSON backup from the device containing your current tasks before first
-sync. Open **Account**, register through the server if necessary, then request a
-login email. The one-use email link returns to the app, which opens existing
-sync setup. Choose/enter your sync encryption password. Use the same account,
-server and encryption password on the second device. Keep the existing conflict
-dialogs; do not silently replace either device's tasks. Offline data remains in
-each browser's IndexedDB and is synced when connectivity returns.
-
-Changing accounts in a browser with another account configured is blocked by
-the login shortcut. Export and deliberately separate local datasets before
-changing identity through the normal sync controls. Email login does not recover
-a forgotten sync encryption password.
+Export a backup before the first sync. Use the same server, account and encryption
+password on other devices, and resolve differences through the existing conflict
+dialogs. Device-local IndexedDB data and provider credentials remain in place.
 
 ## Navicat
 

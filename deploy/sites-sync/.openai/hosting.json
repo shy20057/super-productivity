@@ -1,0 +1,9 @@
+{
+  "project_id": "appgprj_6adda8e2e6a4819196b6cdf3a2ad3f2a",
+  "static": {
+    "directory": "dist",
+    "not_found_handling": "single-page-application"
+  },
+  "d1": null,
+  "r2": "BUCKET"
+}

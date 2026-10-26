@@ -244,6 +244,12 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       addClass += ' is-beyond-budget';
     }
 
+    // A completed task keeps its card in the schedule, dimmed and struck
+    // through instead of vanishing.
+    if (this.task()?.isDone) {
+      addClass += ' is-done';
+    }
+
     return evt.type + '  ' + addClass;
   });
 

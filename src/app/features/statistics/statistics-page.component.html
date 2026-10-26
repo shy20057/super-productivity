@@ -1,7 +1,6 @@
 <div class="statistics">
   <header class="page-heading">
-    <div>
-      <p class="eyebrow">{{ T.F.STATISTICS.EYEBROW | translate }}</p>
+    <div class="heading-copy">
       <h1>{{ T.F.STATISTICS.TITLE | translate }}</h1>
       <p class="muted">{{ T.F.STATISTICS.SUBTITLE | translate }}</p>
     </div>
@@ -25,6 +24,18 @@
   <div class="controls">
     <div class="period-controls">
       <div class="range-picker">
+        <!-- The period picker needs its own input origin beside its trigger. -->
+        <input
+          class="period-picker-input"
+          aria-hidden="true"
+          tabindex="-1"
+          readonly
+          [matDatepicker]="periodPicker"
+          [value]="anchorDate()"
+          [max]="todayDate()"
+          [disabled]="view() === 'all'"
+          (dateChange)="selectCalendarDate($event.value)"
+        />
         <button
           mat-icon-button
           type="button"
@@ -39,7 +50,9 @@
           class="period-trigger"
           [disabled]="view() === 'all'"
           [attr.aria-label]="(T.F.STATISTICS.PERIOD | translate) + ': ' + headingRange()"
-          (click)="datePicker.open()"
+          aria-haspopup="dialog"
+          [attr.aria-expanded]="periodPicker.opened"
+          (click)="periodPicker.open()"
         >
           <mat-icon aria-hidden="true">date_range</mat-icon>
           <span>{{ headingRange() }}</span>
@@ -54,6 +67,13 @@
         >
           <mat-icon>chevron_right</mat-icon>
         </button>
+        <mat-datepicker
+          #periodPicker
+          [startView]="pickerStartView()"
+          [startAt]="anchorDate()"
+          (monthSelected)="selectCalendarMonth($event, periodPicker)"
+          (yearSelected)="selectCalendarYear($event, periodPicker)"
+        />
       </div>
       <button
         mat-button
@@ -86,34 +106,6 @@
           }
         </mat-select>
       </mat-form-field>
-      <mat-form-field
-        appearance="outline"
-        subscriptSizing="dynamic"
-        class="filter-field date-field"
-      >
-        <mat-label>{{ T.F.STATISTICS.DATE | translate }}</mat-label>
-        <input
-          matInput
-          readonly
-          [matDatepicker]="datePicker"
-          [value]="anchorDate()"
-          [max]="todayDate()"
-          [disabled]="view() === 'all'"
-          (click)="datePicker.open()"
-          (dateChange)="selectCalendarDate($event.value)"
-        />
-        <mat-datepicker-toggle
-          matSuffix
-          [for]="datePicker"
-        />
-        <mat-datepicker
-          #datePicker
-          [startView]="pickerStartView()"
-          [startAt]="anchorDate()"
-          (monthSelected)="selectCalendarMonth($event, datePicker)"
-          (yearSelected)="selectCalendarYear($event, datePicker)"
-        />
-      </mat-form-field>
       <button
         mat-button
         type="button"
@@ -127,7 +119,7 @@
   @if (!service.loaded()) {
     <p
       role="status"
-      class="empty-state"
+      class="loading-state"
     >
       {{ T.F.STATISTICS.LOADING | translate }}
     </p>
@@ -136,26 +128,37 @@
       class="summary-cards"
       [attr.aria-label]="T.F.STATISTICS.SUMMARY | translate"
     >
-      <article>
-        <span>{{ T.F.STATISTICS.TOTAL_TIME | translate }}</span
+      <article class="metric-primary">
+        <span class="metric-label">
+          <mat-icon aria-hidden="true">timer</mat-icon>
+          {{ T.F.STATISTICS.TOTAL_TIME | translate }}</span
         ><strong>{{ summary().duration | msToString }}</strong
         ><small>{{ T.F.STATISTICS.ENDED_ONLY | translate }}</small>
       </article>
       <article>
-        <span>{{ T.F.STATISTICS.ROUNDS | translate }}</span
+        <span class="metric-label">
+          <mat-icon aria-hidden="true">adjust</mat-icon>
+          {{ T.F.STATISTICS.ROUNDS | translate }}</span
         ><strong>{{ summary().count }}</strong
         ><small>{{ T.F.STATISTICS.ROUND_HINT | translate }}</small>
       </article>
       <article>
-        <span>{{ T.F.STATISTICS.TASKS | translate }}</span
+        <span class="metric-label">
+          <mat-icon aria-hidden="true">format_list_bulleted</mat-icon>
+          {{ T.F.STATISTICS.TASKS | translate }}</span
         ><strong>{{ summary().taskCount }}</strong
         ><small>{{ T.F.STATISTICS.TASK_HINT | translate }}</small>
       </article>
       <article>
-        <span>{{
-          (view() === 'day' ? T.F.STATISTICS.LONGEST : T.F.STATISTICS.ACTIVE_DAYS)
-            | translate
-        }}</span>
+        <span class="metric-label">
+          <mat-icon aria-hidden="true">{{
+            view() === 'day' ? 'hourglass_top' : 'calendar_today'
+          }}</mat-icon>
+          {{
+            (view() === 'day' ? T.F.STATISTICS.LONGEST : T.F.STATISTICS.ACTIVE_DAYS)
+              | translate
+          }}</span
+        >
         <strong>{{
           view() === 'day' ? (summary().longest | msToString) : summary().activeDays
         }}</strong>
@@ -221,11 +224,14 @@
 
     @if (!summary().count) {
       <section class="empty-state">
-        <mat-icon aria-hidden="true">timelapse</mat-icon>
+        <div class="empty-state-icon">
+          <mat-icon aria-hidden="true">timelapse</mat-icon>
+        </div>
         <h2>{{ T.F.STATISTICS.EMPTY | translate }}</h2>
         <p>{{ T.F.STATISTICS.EMPTY_DESCRIPTION | translate }}</p>
         <button
           mat-flat-button
+          color="primary"
           type="button"
           (click)="startFocus()"
         >

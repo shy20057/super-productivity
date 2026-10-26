@@ -23,7 +23,11 @@ export const getTasksWithinAndBeyondBudget = <T extends TaskWithoutReminder>(
       continue;
     }
 
-    const timeLeftForTask = getTimeLeftForTask(task);
+    // A done task is already worked off, so it must not eat into the day's
+    // remaining budget: otherwise a day full of completed tasks pushes the
+    // undone ones past the budget (and out of the schedule). Same rule as the
+    // planner, where "a done task contributes 0 remaining time" (#8232).
+    const timeLeftForTask = task.isDone ? 0 : getTimeLeftForTask(task);
     if (timeLeftForTask > remainingBudget) {
       isOverBudget = true;
       beyond.push(task);

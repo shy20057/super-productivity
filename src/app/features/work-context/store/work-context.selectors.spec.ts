@@ -355,7 +355,7 @@ describe('workContext selectors', () => {
   });
 
   describe('selectTimelineTasks', () => {
-    it('should not show done tasks', () => {
+    it('should keep done tasks in the schedule (they are rendered greyed out)', () => {
       const P = {
         id: 'P',
         subTaskIds: ['SUB1', 'SUB_S'],
@@ -380,10 +380,9 @@ describe('workContext selectors', () => {
 
       const activeTaskMap = new Map([P, SUB1, SUB_S].map((t) => [t.id, t]));
       const result = selectTimelineTasks.projector([SUB1.id, SUB_S.id], activeTaskMap);
-      expect(result).toEqual({
-        unPlanned: [],
-        planned: [],
-      } as any);
+      // a done task keeps its card in the schedule instead of vanishing
+      expect(result.planned.map((t) => t.id)).toEqual([SUB_S.id]);
+      expect(result.unPlanned.map((t) => t.id)).toEqual([SUB1.id]);
     });
 
     it('should handle missing task entities gracefully (issue #6014)', () => {

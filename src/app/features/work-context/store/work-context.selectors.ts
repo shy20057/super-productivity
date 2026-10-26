@@ -395,9 +395,11 @@ export const selectTimelineTasks = createSelector(
     planned: TaskWithDueTime[];
     unPlanned: TaskWithSubTasks[];
   } => {
+    // Done tasks stay in the schedule: they keep their slot and are rendered
+    // greyed out, so ticking a task off no longer makes its card disappear.
     const allPlannedTasks: TaskWithDueTime[] = [];
     activeTaskMap.forEach((t) => {
-      if (!t.isDone && t.dueWithTime) {
+      if (t.dueWithTime) {
         allPlannedTasks.push(t as TaskWithDueTime);
       }
     });
@@ -418,7 +420,7 @@ export const selectTimelineTasks = createSelector(
             subTasks: taskIdsToTasks(t.subTaskIds),
           }),
         )
-        .filter((t) => !t.isDone && !allPlannedIdSet.has(t.id)),
+        .filter((t) => !allPlannedIdSet.has(t.id)),
     };
   },
 );

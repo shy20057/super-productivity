@@ -121,16 +121,6 @@
           }
         </div>
 
-        <a
-          mat-icon-button
-          routerLink="/account"
-          class="secondary-header-action"
-          [attr.aria-label]="T.F.CLOUD_ACCOUNT.TITLE | translate"
-          [matTooltip]="T.F.CLOUD_ACCOUNT.TITLE | translate"
-        >
-          <mat-icon>account_circle</mat-icon>
-        </a>
-
         @if (isSyncIconEnabled()) {
           <button
             class="sync-btn secondary-header-action"
